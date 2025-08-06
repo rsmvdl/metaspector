@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metaspector"
+version = "0.1.0"
+authors = [
+  { name="RSMVDL" },
+]
+description = "Python library to inspect and exporte metadata from MP4/M4V/M4A, MP3 and FLAC media files."
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "BSD-3-Clause license"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Topic :: Multimedia :: Video",
+]
+
+dependencies = []
+
+
+[project.scripts]
+metaspector = "metaspector.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/rsmvdl/metaspector"
+"Bug Tracker" = "https://github.com/rsmvdl/metaspector/issues"
+
+[tool.black]
+line-length = 88
+target-version = ['py313']

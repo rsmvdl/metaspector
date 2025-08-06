@@ -1,0 +1,7 @@
+.idea
+venv/
+__pycache__/
+metaspector/__pycache__
+metaspector/format_handlers/flac/__pycache__
+metaspector/format_handlers/mp3/__pycache__
+metaspector/format_handlers/mp4/__pycache__
