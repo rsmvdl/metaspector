@@ -649,7 +649,7 @@ class MP4BoxParser:
             metadata.pop("hd_video", None)
             metadata.pop("hd_video_definition", None)
             if "itunesadvisory" not in metadata:
-                metadata["itunesadvisory"] = "0"
+                metadata["itunesadvisory"] = 0
             metadata.pop("content_rating", None)
 
         f.seek(ilst_end)

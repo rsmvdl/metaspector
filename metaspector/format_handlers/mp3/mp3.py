@@ -90,9 +90,9 @@ class Mp3Parser(BaseMediaParser):
             ):
                 audio_info["bitrate_kbps"] = audio_info["initial_frame_bitrate_kbps"]
 
+            # Add the audio info to the tracks list.
             self.audio_tracks.append(
                 {
-                    "track_id": 1,
                     "handler_name": "Audio",
                     "language": self.metadata.get("language", "und"),
                     **{
@@ -104,7 +104,8 @@ class Mp3Parser(BaseMediaParser):
             )
 
         final_audio_tracks = []
-        for track in self.audio_tracks:
+        for i, track in enumerate(self.audio_tracks):
+            track["track_id"] = i
             ordered_track = self._order_audio_track(track)
             final_audio_tracks.append(ordered_track)
 
@@ -169,6 +170,11 @@ class Mp3Parser(BaseMediaParser):
                     self.metadata[key] = int(value)
             except (ValueError, TypeError):
                 self.metadata[key] = value
+        elif key == "barcode":
+            try:
+                self.metadata[key] = int(value)
+            except (ValueError, TypeError):
+                self.metadata[key] = value
         elif key == "tempo":
             try:
                 self.metadata[key] = int(float(value))
@@ -208,13 +214,15 @@ class Mp3Parser(BaseMediaParser):
             "media_type",
             "description",
             "isrc",
-            "barcode",
             "track_total",
             "disc_total",
         ]:
             self.metadata[key] = str(value).strip()
         elif key == "length":
-            self.metadata[key] = str(value).strip()
+            try:
+                self.metadata[key] = int(value)
+            except (ValueError, TypeError):
+                self.metadata[key] = value
         elif key == "itunesadvisory":
             if isinstance(value, bool):
                 self.metadata[key] = "1" if value else "0"
@@ -224,7 +232,7 @@ class Mp3Parser(BaseMediaParser):
             self.metadata[key] = value
 
     def _process_metadata_for_output(
-        self, raw_metadata: Dict[str, Any]
+            self, raw_metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         processed_metadata = {}
         output_order = [
@@ -272,22 +280,28 @@ class Mp3Parser(BaseMediaParser):
 
         for key, value in temp_data.items():
             if (
-                value is not None
-                and value != ""
-                and key
-                not in [
-                    "duration_seconds",
-                    "bitrate_kbps",
-                    "unique_file_identifier",
-                    "tlen",
-                    "tdat",
-                ]
+                    value is not None
+                    and value != ""
+                    and key
+                    not in [
+                "duration_seconds",
+                "bitrate_kbps",
+                "unique_file_identifier",
+                "tlen",
+                "tdat",
+            ]
             ):
                 processed_metadata[key] = value
 
         if "track_total" in processed_metadata:
-            processed_metadata["track_total"] = str(processed_metadata["track_total"])
+            processed_metadata["track_total"] = int(processed_metadata["track_total"])
         if "disc_total" in processed_metadata:
-            processed_metadata["disc_total"] = str(processed_metadata["disc_total"])
+            processed_metadata["disc_total"] = int(processed_metadata["disc_total"])
 
+        # Itunes Advisory is processed and converted to an int.
+        if "itunesadvisory" in processed_metadata:
+            try:
+                processed_metadata["itunesadvisory"] = int(processed_metadata["itunesadvisory"])
+            except (ValueError, TypeError):
+                pass
         return processed_metadata

@@ -1,5 +1,4 @@
-# metaspector/format_handlers/mp4/mp4.py
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 import struct
 
@@ -144,6 +143,7 @@ class Mp4Parser(BaseMediaParser):
             "internationalized_language",
             "codec",
             "channels",
+            "channel_layout",
             "sample_rate",
             "bits_per_sample",
             "bitrate_kbps",
@@ -236,9 +236,11 @@ class Mp4Parser(BaseMediaParser):
         processed_metadata.update(temp_data)
 
         if "track_total" in processed_metadata:
-            processed_metadata["track_total"] = str(processed_metadata["track_total"])
+            processed_metadata["track_total"] = int(processed_metadata["track_total"])
         if "disc_total" in processed_metadata:
-            processed_metadata["disc_total"] = str(processed_metadata["disc_total"])
+            processed_metadata["disc_total"] = int(processed_metadata["disc_total"])
+        if "itunesadvisory" in processed_metadata:
+            processed_metadata["itunesadvisory"] = int(processed_metadata["itunesadvisory"])
 
         return processed_metadata
 
@@ -296,6 +298,8 @@ class Mp4Parser(BaseMediaParser):
 
             if box_type == b"tkhd":
                 track_id = MP4BoxParser.parse_tkhd(f, box_end)
+                if track_id is not None:
+                    track_id -= 1
             elif box_type == b"udta":
                 udta_chars, udta_name = MP4BoxParser.parse_udta(f, box_end)
                 track_chars = udta_chars

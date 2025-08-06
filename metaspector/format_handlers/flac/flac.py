@@ -107,7 +107,7 @@ class FlacParser(BaseMediaParser):
 
         return {
             "metadata": process_metadata_for_output(metadata),
-            "audio": [order_audio_track(track) for track in audio_tracks],
+            "audio": [order_audio_track(track, i) for i, track in enumerate(audio_tracks)],
             "video": [],
             "subtitle": [],
         }

@@ -157,7 +157,12 @@ def _apply_metadata_field(metadata: dict, key: str, value: Any, key_map: Dict):
         try:
             num, total = str(value).split("/", 1)
             metadata[output_key] = int(num)
-            metadata[output_key.replace("_number", "_total")] = str(total)
+            metadata[output_key.replace("_number", "_total")] = int(total)
+        except (ValueError, TypeError):
+            metadata[output_key] = value
+    elif output_key in ["track_number", "disc_number", "track_total", "disc_total", "itunesadvisory", "barcode", "length", "tempo"]:
+        try:
+            metadata[output_key] = int(value)
         except (ValueError, TypeError):
             metadata[output_key] = value
     else:
