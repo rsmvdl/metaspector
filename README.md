@@ -32,12 +32,105 @@
 
 * **Export Functionality**: Export extracted metadata to JSON files or cover art to image files.
 
-* **No Dependencies**: Metaspector is a lightweight, self-contained library. It relies exclusively on built-in Python tools, requiring no external libraries to run. 
+* **No Dependencies**: Metaspector is a lightweight, self-contained library. It relies exclusively on built-in Python tools, requiring no external libraries to run.
+
 ---
 
 ## 🚀 Installation
 
 You can install `metaspector` directly from PyPI using pip:
 
-```markdown
+```bash
 pip install metaspector
+```
+
+---
+
+## 💡 Usage
+
+### Command-Line Interface (CLI)
+
+The metaspector CLI provides simple and direct access to the library's main functions.
+
+#### Inspect a File
+
+To inspect a file and print all of its metadata to the terminal as JSON, use the `inspect` command:
+
+```bash
+metaspector inspect "/path/to/your/file.mp4"
+```
+
+#### Inspect a Specific Section
+
+You can specify a section to get a more focused output. For example, to view only the audio track details:
+
+```bash
+metaspector inspect "/path/to/your/file.m4a" --section audio
+```
+
+#### Export Metadata
+
+To export the full metadata of a file to a JSON file, use the `export` command with the `meta` type:
+
+```bash
+metaspector export meta "/path/to/your/file.mp3" "./output/"
+```
+
+This command will create a file named `your_file.json` in the `./output/` directory.
+
+#### Export Cover Art
+
+To extract and save the embedded cover art, use the `export` command with the `cover` type:
+
+```bash
+metaspector export cover "/path/to/your/file.flac" "./output/"
+```
+
+This will save the image as `your_file.jpg` or `your_file.png` in the `./output/` directory.
+
+---
+
+### Python API
+
+Metaspector's API is designed for easy integration into your Python scripts.
+
+#### Basic Inspection
+
+To get all metadata from a file, instantiate `MediaInspector` and call the `inspect()` method:
+
+```python
+from metaspector import MediaInspector
+
+inspector = MediaInspector("/path/to/your/file.mp4")
+metadata = inspector.inspect()
+
+print(metadata)
+```
+
+#### Get Specific Sections
+
+You can pass the `section` argument to the `inspect()` method to retrieve only a specific part of the metadata:
+
+```python
+from metaspector import MediaInspector
+
+inspector = MediaInspector("/path/to/your/file.m4a")
+audio_data = inspector.inspect(section="audio")
+
+print(audio_data)
+```
+
+#### Extract Cover Art
+
+Use the `get_cover_art()` method to retrieve the raw image bytes, which you can then save to a file:
+
+```python
+from metaspector import MediaInspector
+
+inspector = MediaInspector("/path/to/your/file.flac")
+cover_art_bytes = inspector.get_cover_art()
+
+if cover_art_bytes:
+    with open("cover.jpg", "wb") as f:
+        f.write(cover_art_bytes)
+```

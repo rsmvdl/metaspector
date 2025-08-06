@@ -11,7 +11,7 @@ jobs:
     permissions:
       id-token: write
     environment:
-      name: pypi
+      name: pypi-release
       url: https://pypi.org/p/metaspector
     steps:
       - uses: actions/checkout@v4

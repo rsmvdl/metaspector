@@ -1,5 +1,4 @@
-# metaspector/cli.py
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 """
 cli.py
@@ -15,7 +14,16 @@ import sys
 import os
 
 from .inspector import MediaInspector
-from . import MetaspectorError
+from ._exceptions import MetaspectorError
+
+
+def check_file_path(path):
+    """Custom type function for argparse to validate if a path exists and is a file."""
+    if not os.path.isfile(path):
+        raise argparse.ArgumentTypeError(
+            f"The path '{path}' does not exist or is not a file."
+        )
+    return path
 
 
 def inspect(args):
@@ -122,7 +130,9 @@ def main():
         ),
     )
     inspect_parser.add_argument(
-        "filepath", help="The full path to the media file to inspect."
+        "filepath",
+        type=check_file_path,
+        help="The full path to the media file to inspect.",
     )
     inspect_parser.add_argument(
         "--section",
@@ -150,7 +160,9 @@ def main():
         help="The type of data to export: 'cover' for the cover art or 'meta' for metadata JSON.",
     )
     export_parser.add_argument(
-        "filepath", help="The full path to the media file to export from."
+        "filepath",
+        type=check_file_path,
+        help="The full path to the media file to export from.",
     )
     export_parser.add_argument(
         "destination",
