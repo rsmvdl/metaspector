@@ -51,13 +51,13 @@ class Mp3Parser(BaseMediaParser):
             f, self.id3_tag_size, self.total_file_size
         )
         if audio_info:
-            if "length" in self.metadata and self.metadata["length"] is not None:
+            if "duration_seconds" in self.metadata and self.metadata["duration_seconds"] is not None:
                 try:
-                    duration_from_tag = int(self.metadata["length"]) / 1000.0
+                    duration_from_tag = int(self.metadata["duration_seconds"]) / 1000.0
                     audio_info["duration_seconds"] = duration_from_tag
                 except (ValueError, TypeError):
                     logger.warning(
-                        f"Could not convert ID3 TLEN '{self.metadata['length']}' to seconds. Falling back to calculated duration."
+                        f"Could not convert ID3 TLEN '{self.metadata['duration_seconds']}' to seconds. Falling back to calculated duration."
                     )
                     audio_info["duration_seconds"] = None
 
@@ -70,6 +70,11 @@ class Mp3Parser(BaseMediaParser):
                 audio_info["duration_seconds"] = (
                     audio_info["total_samples"] / audio_info["sample_rate"]
                 )
+
+            if audio_info.get("duration_seconds") is not None:
+                self.metadata["duration_seconds"] = audio_info.get("duration_seconds")
+            else:
+                self.metadata.pop("duration_seconds", None)
 
             if (
                 audio_info.get("duration_seconds") is not None
@@ -105,7 +110,7 @@ class Mp3Parser(BaseMediaParser):
 
         final_audio_tracks = []
         for i, track in enumerate(self.audio_tracks):
-            track["track_id"] = i
+            track["index"] = i
             ordered_track = self._order_audio_track(track)
             final_audio_tracks.append(ordered_track)
 
@@ -129,10 +134,11 @@ class Mp3Parser(BaseMediaParser):
     def _order_audio_track(self, track: Dict[str, Any]) -> Dict[str, Any]:
         """Reorders audio track fields for consistent output."""
         ordered_keys = [
-            "track_id",
+            "index",
             "handler_name",
             "language",
             "codec",
+            "codec_tag_string",
             "channels",
             "sample_rate",
             "bits_per_sample",
@@ -218,7 +224,7 @@ class Mp3Parser(BaseMediaParser):
             "disc_total",
         ]:
             self.metadata[key] = str(value).strip()
-        elif key == "length":
+        elif key == "duration_seconds":
             try:
                 self.metadata[key] = int(value)
             except (ValueError, TypeError):
@@ -245,6 +251,7 @@ class Mp3Parser(BaseMediaParser):
             "disc_number",
             "disc_total",
             "genre",
+            "duration_seconds",
             "release_date",
             "publisher",
             "isrc",
@@ -266,7 +273,6 @@ class Mp3Parser(BaseMediaParser):
             "record_company",
             "description",
             "tempo",
-            "length",
             "itunesadvisory",
         ]
 
@@ -284,7 +290,6 @@ class Mp3Parser(BaseMediaParser):
                     and value != ""
                     and key
                     not in [
-                "duration_seconds",
                 "bitrate_kbps",
                 "unique_file_identifier",
                 "tlen",
@@ -297,8 +302,6 @@ class Mp3Parser(BaseMediaParser):
             processed_metadata["track_total"] = int(processed_metadata["track_total"])
         if "disc_total" in processed_metadata:
             processed_metadata["disc_total"] = int(processed_metadata["disc_total"])
-
-        # Itunes Advisory is processed and converted to an int.
         if "itunesadvisory" in processed_metadata:
             try:
                 processed_metadata["itunesadvisory"] = int(processed_metadata["itunesadvisory"])

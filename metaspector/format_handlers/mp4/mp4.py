@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# metaspector/format_handlers/mp4/mp4.py
+# !/usr/bin/env python3
 
 import struct
 
@@ -6,6 +7,7 @@ from typing import BinaryIO, Dict, Any, Optional, List
 from metaspector.format_handlers.base import BaseMediaParser
 from .mp4_utils import _read_box_header, _read_uint32, _read_uint64
 from .mp4_boxes import MP4BoxParser
+from metaspector.matrices.language_matrix import get_long_language_name
 
 
 class Mp4Parser(BaseMediaParser):
@@ -56,7 +58,7 @@ class Mp4Parser(BaseMediaParser):
                     and self.moov_timescale > 0
                 ):
                     duration_in_seconds = self.moov_duration / self.moov_timescale
-                    self.metadata["length"] = int(duration_in_seconds * 1000)
+                    self.metadata["duration_seconds"] = duration_in_seconds
                     for track in self.audio_tracks:
                         track["duration_seconds"] = duration_in_seconds
                     for track in self.video_tracks:
@@ -75,13 +77,23 @@ class Mp4Parser(BaseMediaParser):
             ordered_track = self._order_audio_track(track)
             final_audio_tracks.append(ordered_track)
 
+        final_subtitle_tracks = []
+        for track in self.subtitle_tracks:
+            ordered_track = self._order_subtitle_track(track)
+            final_subtitle_tracks.append(ordered_track)
+
+        final_video_tracks = []
+        for track in self.video_tracks:
+            ordered_track = self._order_video_track(track)
+            final_video_tracks.append(ordered_track)
+
         final_metadata = self._process_metadata_for_output(self.metadata)
 
         return {
             "metadata": final_metadata,
-            "video": self.video_tracks,
+            "video": final_video_tracks,
             "audio": final_audio_tracks,
-            "subtitle": self.subtitle_tracks,
+            "subtitle": final_subtitle_tracks,
         }
 
     def get_cover_art(self, f: BinaryIO) -> Optional[bytes]:
@@ -135,13 +147,15 @@ class Mp4Parser(BaseMediaParser):
         return search_in_container(0, file_size)
 
     def _order_audio_track(self, track: Dict[str, Any]) -> Dict[str, Any]:
-        """Reorders audio track fields to place duration_seconds after bitrate_kbps."""
+        """Reorders audio track fields to place dolby_atmos after total_samples."""
         ordered_keys = [
-            "track_id",
+            "index",
             "handler_name",
             "language",
             "internationalized_language",
+            "internationalized_language_long",
             "codec",
+            "codec_tag_string",
             "channels",
             "channel_layout",
             "sample_rate",
@@ -149,6 +163,7 @@ class Mp4Parser(BaseMediaParser):
             "bitrate_kbps",
             "duration_seconds",
             "total_samples",
+            "dolby_atmos",
             "main_program_content",
             "original_content",
             "dubbed_translation",
@@ -157,7 +172,73 @@ class Mp4Parser(BaseMediaParser):
             "describes_video_for_accessibility",
             "enhances_speech_intelligibility",
             "auxiliary_content",
-            "dolby_atmos",
+        ]
+
+        ordered_dict = {}
+        for key in ordered_keys:
+            if key in track:
+                ordered_dict[key] = track.pop(key)
+
+        ordered_dict.update(track)
+        return ordered_dict
+
+    def _order_subtitle_track(self, track: Dict[str, Any]) -> Dict[str, Any]:
+        """Reorders subtitle track fields for consistent output."""
+        ordered_keys = [
+            "index",
+            "handler_name",
+            "language",
+            "internationalized_language",
+            "internationalized_language_long",
+            "codec",
+            "main_program_content",
+            "original_content",
+            "auxiliary_content",
+            "forced_only",
+            "language_translation",
+            "easy_to_read",
+            "describes_music_and_sound",
+            "transcribes_spoken_dialog",
+        ]
+
+        ordered_dict = {}
+        for key in ordered_keys:
+            if key in track:
+                ordered_dict[key] = track.pop(key)
+
+        ordered_dict.update(track)
+        return ordered_dict
+
+    def _order_video_track(self, track: Dict[str, Any]) -> Dict[str, Any]:
+        """Reorders video track fields for consistent output."""
+        ordered_keys = [
+            "index",
+            "handler_name",
+            "language",
+            "internationalized_language",
+            "internationalized_language_long",
+            "codec",
+            "codec_tag_string",
+            "width",
+            "height",
+            "bitrate_kbps",
+            "duration_seconds",
+            "total_samples",
+            "hdr_format",
+            "pixel_format",
+            "color_space",
+            "color_transfer",
+            "color_primaries",
+            "transfer_characteristics",
+            "matrix_coefficients",
+            "color_range",
+            "dolby_vision",
+            "dolby_vision_profile",
+            "dolby_vision_level",
+            "dolby_vision_sdr_compatible",
+            "main_program_content",
+            "original_content",
+            "auxiliary_content",
         ]
 
         ordered_dict = {}
@@ -185,6 +266,7 @@ class Mp4Parser(BaseMediaParser):
             "disc_number",
             "disc_total",
             "genre",
+            "duration_seconds",
             "release_date",
             "publisher",
             "isrc",
@@ -192,6 +274,10 @@ class Mp4Parser(BaseMediaParser):
             "upc",
             "media_type",
             "itunesadvisory",
+            "rating_age_classification",
+            "rating_label",
+            "rating_system",
+            "rating_unit",
             "replaygain_track_gain",
             "replaygain_album_gain",
             "lyrics",
@@ -206,6 +292,7 @@ class Mp4Parser(BaseMediaParser):
             "language",
             "record_company",
             "description",
+            "long_description",
             "sort_name",
             "sort_artist",
             "sort_album",
@@ -221,7 +308,6 @@ class Mp4Parser(BaseMediaParser):
             "geID",
             "composer_id",
             "external_id",
-            "length",
             "itun_compilation",
         ]
 
@@ -240,7 +326,9 @@ class Mp4Parser(BaseMediaParser):
         if "disc_total" in processed_metadata:
             processed_metadata["disc_total"] = int(processed_metadata["disc_total"])
         if "itunesadvisory" in processed_metadata:
-            processed_metadata["itunesadvisory"] = int(processed_metadata["itunesadvisory"])
+            processed_metadata["itunesadvisory"] = int(
+                processed_metadata["itunesadvisory"]
+            )
 
         return processed_metadata
 
@@ -276,7 +364,7 @@ class Mp4Parser(BaseMediaParser):
 
     def _parse_trak(self, f: BinaryIO, trak_end: int):
         """Parses a 'trak' box and assembles track information."""
-        track_id: Optional[int] = None
+        index: Optional[int] = None
         i18n_lang: Optional[str] = None
         hdlr_details: Dict[str, Any] = {}
         mdhd_details: Dict[str, Any] = {}
@@ -288,6 +376,7 @@ class Mp4Parser(BaseMediaParser):
         total_sample_size: int = 0
         descriptive_track_name: Optional[str] = None
         total_samples: Optional[int] = None
+        subtitle_codec: Optional[str] = None
 
         current_pos = f.tell()
         while current_pos < trak_end:
@@ -297,9 +386,9 @@ class Mp4Parser(BaseMediaParser):
                 break
 
             if box_type == b"tkhd":
-                track_id = MP4BoxParser.parse_tkhd(f, box_end)
-                if track_id is not None:
-                    track_id -= 1
+                index = MP4BoxParser.parse_tkhd(f, box_end)
+                if index is not None:
+                    index -= 1
             elif box_type == b"udta":
                 udta_chars, udta_name = MP4BoxParser.parse_udta(f, box_end)
                 track_chars = udta_chars
@@ -352,23 +441,20 @@ class Mp4Parser(BaseMediaParser):
                                                 )
                                             )
                                             video_info.update(video_stsd_info)
-                                        elif (
-                                            hdlr_details.get("type")
-                                            in (b"sbtl", b"subt")
-                                            and descriptive_track_name is None
+                                        elif hdlr_details.get("type") in (
+                                            b"sbtl",
+                                            b"subt",
                                         ):
-                                            temp_file_pos = f.tell()
-                                            f.seek(stbl_box_start)
-                                            subtitle_stsd_name = (
-                                                MP4BoxParser.parse_stsd_subtitle(
-                                                    f, stbl_end
-                                                )
+                                            (
+                                                subtitle_codec,
+                                                subtitle_stsd_name,
+                                            ) = MP4BoxParser.parse_stsd_subtitle(
+                                                f, stbl_end
                                             )
                                             if subtitle_stsd_name:
                                                 descriptive_track_name = (
                                                     subtitle_stsd_name
                                                 )
-                                            f.seek(temp_file_pos)
                                     elif stbl_type == b"stsz":
                                         f.seek(stbl_box_start + 8 + 4)
                                         uniform_size = _read_uint32(f)
@@ -463,6 +549,8 @@ class Mp4Parser(BaseMediaParser):
             current_pos = box_end
 
         lang = mdhd_details.get("lang", "und")
+        i18n_lang_long = get_long_language_name(i18n_lang if i18n_lang else lang)
+
         track_duration = mdhd_details.get("duration")
         track_timescale = mdhd_details.get("timescale")
         handler_type = hdlr_details.get("type")
@@ -482,7 +570,7 @@ class Mp4Parser(BaseMediaParser):
             if total_samples is not None:
                 audio_info["total_samples"] = total_samples
 
-            if audio_info.get("codec") == "ec-3":
+            if audio_info.get("codec") == "eac3":
                 has_atmos = False
                 if (
                     first_chunk_offset is not None
@@ -493,7 +581,7 @@ class Mp4Parser(BaseMediaParser):
                     try:
                         f.seek(first_chunk_offset)
                         frame_data = f.read(first_sample_size)
-                        if b"\x03\xbb\xbb\x81" in frame_data:
+                        if b"\x0b\x77" in frame_data or b"\x1f\xee" in frame_data:
                             has_atmos = True
                     finally:
                         f.seek(original_file_pos)
@@ -501,10 +589,11 @@ class Mp4Parser(BaseMediaParser):
 
             self.audio_tracks.append(
                 {
-                    "track_id": track_id or 0,
+                    "index": index or 0,
                     "handler_name": final_track_name,
                     "language": lang,
                     "internationalized_language": i18n_lang,
+                    "internationalized_language_long": i18n_lang_long,
                     **audio_info,
                     "main_program_content": track_chars.main_program_content,
                     "original_content": track_chars.original_content,
@@ -520,10 +609,12 @@ class Mp4Parser(BaseMediaParser):
         elif handler_type in (b"sbtl", b"subt"):
             self.subtitle_tracks.append(
                 {
-                    "track_id": track_id or 0,
+                    "index": index or 0,
                     "handler_name": final_track_name,
                     "language": lang,
                     "internationalized_language": i18n_lang,
+                    "internationalized_language_long": i18n_lang_long,
+                    "codec": subtitle_codec,
                     "main_program_content": track_chars.main_program_content,
                     "original_content": track_chars.original_content,
                     "auxiliary_content": track_chars.auxiliary_content,
@@ -547,10 +638,11 @@ class Mp4Parser(BaseMediaParser):
 
             self.video_tracks.append(
                 {
-                    "track_id": track_id or 0,
+                    "index": index or 0,
                     "handler_name": final_track_name,
                     "language": lang,
                     "internationalized_language": i18n_lang,
+                    "internationalized_language_long": i18n_lang_long,
                     **video_info,
                     "main_program_content": track_chars.main_program_content,
                     "original_content": track_chars.original_content,

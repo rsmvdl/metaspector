@@ -28,11 +28,17 @@
 
     * **API**: Integrate seamlessly into your Python applications.
 
-* **Section-Specific Output**: Request only the `metadata`, `audio`, `video`, or `subtitle` sections for focused data retrieval.
+* **Section-Specific Output**: Request only the `metadata`, `video`, `audio`, or `subtitle` sections for focused data retrieval.
 
 * **Export Functionality**: Export extracted metadata to JSON files or cover art to image files.
 
 * **No Dependencies**: Metaspector is a lightweight, self-contained library. It relies exclusively on built-in Python tools, requiring no external libraries to run.
+
+* **Dolby Vision/Atoms Detection**: Easily detect if a given video or audio track contains Dolby Vision or Atmos specific indicators
+
+* **MP42Foundation oriented**: Heavily oriented on MP42Foundation, also see https://github.com/SublerApp/MP42Foundation
+
+* **ffmpeg oriented**: Strives to be as compatible as possible with ffmpeg cli instructions
 
 ---
 
@@ -42,6 +48,17 @@ You can install `metaspector` directly from PyPI using pip:
 
 ```bash
 pip install metaspector
+```
+
+For development or local usage, it's recommended to use a virtual environment.
+
+```bash
+# Create and activate a virtual environment (optional but recommended)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install in editable mode from your project's root directory
+pip install -e .
 ```
 
 ---

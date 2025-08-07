@@ -4,18 +4,19 @@
 from typing import Dict, Any
 
 
-def order_audio_track(track: Dict[str, Any], track_id: int) -> Dict[str, Any]:
-    """Reorders audio track fields for consistent output and adds track_id."""
-    # Add track_id to the dictionary before ordering
-    track["track_id"] = track_id
+def order_audio_track(track: Dict[str, Any], index: int) -> Dict[str, Any]:
+    """Reorders audio track fields for consistent output and adds index."""
+    # Add index to the dictionary before ordering
+    track["index"] = index
     track["handler_name"] = "Audio"  # Hardcoded for consistency
     track["language"] = "und"  # Hardcoded for consistency
 
     ordered_keys = [
-        "track_id",
+        "index",
         "handler_name",
         "language",
         "codec",
+        "codec_tag_string",
         "channels",
         "sample_rate",
         "bits_per_sample",
@@ -40,6 +41,8 @@ def process_metadata_for_output(raw_meta: Dict[str, Any]) -> Dict[str, Any]:
         "disc_number",
         "disc_total",
         "genre",
+        "duration_seconds",
+        "tempo",
         "release_date",
         "publisher",
         "isrc",
@@ -58,8 +61,6 @@ def process_metadata_for_output(raw_meta: Dict[str, Any]) -> Dict[str, Any]:
         "cover_art_dimensions",
         "comment",
         "encoder",
-        "tempo",
-        "length",
     ]
     processed_meta = {k: raw_meta.pop(k) for k in output_order if k in raw_meta}
     processed_meta.update(raw_meta)

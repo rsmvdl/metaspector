@@ -1,4 +1,5 @@
 # metaspector/format_handlers/__init__.py
+# !/usr/bin/env python3
 
 # This file makes the 'format_handlers' directory a Python package.
 # You can optionally import specific format parsers here for convenience,

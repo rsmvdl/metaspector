@@ -3,7 +3,7 @@
 
 import os
 import logging
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 
 from .format_handlers.mp4.mp4 import Mp4Parser
 from .format_handlers.flac.flac import FlacParser
@@ -37,9 +37,9 @@ class MediaInspector:
         """
         result: Dict[str, Any] = {
             "metadata": {},
+            "video": [],
             "audio": [],
             "subtitle": [],
-            "video": [],
         }
 
         try:
@@ -80,9 +80,14 @@ class MediaInspector:
                     result["metadata"].update(
                         media_content_parse_result.get("metadata", {})
                     )
-                    result["audio"].extend(media_content_parse_result.get("audio", []))
-                    result["video"].extend(media_content_parse_result.get("video", []))
-                    result["subtitle"].extend(media_content_parse_result.get("subtitle", [])
+                    result["video"].extend(
+                        media_content_parse_result.get("video", [])
+                    )
+                    result["audio"].extend(
+                        media_content_parse_result.get("audio", [])
+                    )
+                    result["subtitle"].extend(
+                        media_content_parse_result.get("subtitle", [])
                     )
                 else:
                     # If no specific parser was identified for the file.

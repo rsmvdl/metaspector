@@ -1,4 +1,5 @@
-#!/usr/bin/env python3
+# metaspector/cli.py
+# !/usr/bin/env python3
 
 """
 cli.py

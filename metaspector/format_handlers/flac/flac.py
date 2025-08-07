@@ -56,6 +56,7 @@ class FlacParser(BaseMediaParser):
             "totaltracks": "track_total",
             "disctotal": "disc_total",
             "totaldiscs": "disc_total",
+            "length": "duration_seconds",
         }
 
     def parse(self, f: BinaryIO) -> Dict[str, Any]:
@@ -95,15 +96,19 @@ class FlacParser(BaseMediaParser):
 
             f.seek(data_end_pos)
 
-        if audio_tracks and audio_tracks[0].get("duration_seconds", 0) > 0:
-            audio_data_size = (
-                total_file_size - total_metadata_size
-                if total_file_size > total_metadata_size
-                else 0
-            )
-            if audio_data_size > 0:
-                bitrate = (audio_data_size * 8) / audio_tracks[0]["duration_seconds"]
-                audio_tracks[0]["bitrate_kbps"] = int(bitrate / 1000)
+        if audio_tracks:
+            if audio_tracks[0].get("duration_seconds"):
+                metadata["duration_seconds"] = audio_tracks[0]["duration_seconds"]
+
+            if audio_tracks[0].get("duration_seconds", 0) > 0:
+                audio_data_size = (
+                    total_file_size - total_metadata_size
+                    if total_file_size > total_metadata_size
+                    else 0
+                )
+                if audio_data_size > 0:
+                    bitrate = (audio_data_size * 8) / audio_tracks[0]["duration_seconds"]
+                    audio_tracks[0]["bitrate_kbps"] = int(bitrate / 1000)
 
         return {
             "metadata": process_metadata_for_output(metadata),

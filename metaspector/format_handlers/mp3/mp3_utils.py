@@ -210,7 +210,7 @@ ID3_KEY_MAP = {
     "TXXX:REPLAYGAIN_ALBUM_PEAK": "replaygain_album_peak",
     "TXXX:CUSTOM_TRACKTOTAL": "track_total",
     "TXXX:CUSTOM_DISCTOTAL": "disc_total",
-    "TXXX:CUSTOM_LENGTH": "length",
+    "TXXX:CUSTOM_LENGTH": "duration_seconds",
     "TXXX:CUSTOM_BPM": "tempo",
     "TXXX:CUSTOM_ISRC": "isrc",
     "TXXX:CUSTOM_BARCODE": "barcode",
@@ -222,7 +222,7 @@ ID3_KEY_MAP = {
     "TXXX:COMMENT": "comment",
     "TXXX:DATE": "release_date",
     "TXXX:PERFORMER": "performer",
-    "TLEN": "length",
+    "TLEN": "duration_seconds",
 }
 
 

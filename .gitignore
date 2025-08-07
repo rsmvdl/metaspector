@@ -1,7 +1,10 @@
-.idea
+# IDE / Editor specific
+.idea/
+
+# Virtual Environments
+.venv/
 venv/
+
+# Python build artifacts and cache
 __pycache__/
-metaspector/__pycache__
-metaspector/format_handlers/flac/__pycache__
-metaspector/format_handlers/mp3/__pycache__
-metaspector/format_handlers/mp4/__pycache__
+*.egg-info/

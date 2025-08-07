@@ -5,7 +5,12 @@ import logging
 import struct
 
 from typing import BinaryIO, Dict, Any, Optional
-from .mp4_utils import _read_box_header, _read_uint8, _read_uint32, _read_uint64
+from .mp4_utils import (
+    _read_box_header,
+    _read_uint8,
+    _read_uint32,
+    _read_uint64,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,44 +67,15 @@ class BitstreamParser:
     (e.g., video SPS/VUI, SEI messages) and extracting sample data.
     """
 
-    TRANSFER_CHARACTERISTICS_MAP = {
-        1: "BT.709",
-        4: "BT.470M",
-        5: "BT.470BG",
-        6: "BT.601",
-        16: "SMPTE ST 2084 (PQ)",
-        18: "ARIB STD-B67 (HLG)",
-        14: "SMPTE ST 428-1",
-    }
-    COLOR_PRIMARIES_MAP = {
-        1: "BT.709",
-        5: "BT.601",
-        9: "BT.2020",
-        10: "SMPTE ST 2065-1",
-        11: "SMPTE ST 428-1",
-        12: "SMPTE RP 431-2",
-        13: "SMPTE EG 432-1",
-    }
-    MATRIX_COEFFICIENTS_MAP = {
-        0: "RGB",
-        1: "BT.709",
-        5: "BT.470BG",
-        6: "BT.601",
-        9: "BT.2020 non-constant",
-        10: "BT.2020 constant",
-        14: "SMPTE ST 2065-1",
-        15: "SMPTE ST 428-1",
-    }
-
     @staticmethod
     def extract_sample_data(
-        f: BinaryIO, moov_start: int, moov_end: int, track_id: int
+        f: BinaryIO, moov_start: int, moov_end: int, index: int
     ) -> Optional[bytes]:
         """
         Navigates the MP4 structure to find and extract the raw data of the first
-        sample for a given track_id. This is essential for bitstream parsing.
+        sample for a given index. This is essential for bitstream parsing.
         """
-        logger.debug(f"Attempting to extract first sample for track ID: {track_id}")
+        logger.debug(f"Attempting to extract first sample for track ID: {index}")
         f.seek(moov_start)
 
         while f.tell() < moov_end:
@@ -131,13 +107,13 @@ class BitstreamParser:
                         else:
                             found_id = None
 
-                        if found_id == track_id:
+                        if found_id == index:
                             is_correct_track = True
                         break
                     f.seek(inner_end)
 
                 if is_correct_track:
-                    logger.debug(f"Found correct 'trak' for track ID {track_id}")
+                    logger.debug(f"Found correct 'trak' for track ID {index}")
                     f.seek(trak_start)
                     stbl_start, stbl_end = 0, 0
                     current_pos_trak = trak_start
@@ -220,7 +196,7 @@ class BitstreamParser:
             f.seek(box_end)
 
         logger.warning(
-            f"Could not find sample data for track ID {track_id}. 'trak' may not exist or parsing failed."
+            f"Could not find sample data for track ID {index}. 'trak' may not exist or parsing failed."
         )
         return None
 
@@ -455,9 +431,9 @@ class BitstreamParser:
 
                 if isinstance(bitstream_details.get("video_full_range_flag"), int):
                     bitstream_details["color_range"] = (
-                        "Full"
+                        "full"
                         if bitstream_details["video_full_range_flag"] == 1
-                        else "Limited"
+                        else "tv"
                     )
 
                 if bitstream_details.get("matrix_coefficients") != "Unknown":
@@ -506,13 +482,13 @@ class BitstreamParser:
                         if payload_type == 137:
                             if len(current_payload_data) >= 24:
                                 bitstream_details["transfer_characteristics"] = (
-                                    "SMPTE ST 2084 (PQ)"
+                                    "smpte2084"
                                 )
                                 if (
                                     bitstream_details["color_primaries"] == "Unknown"
-                                    or bitstream_details["color_primaries"] == "BT.709"
+                                    or bitstream_details["color_primaries"] == "bt709"
                                 ):
-                                    bitstream_details["color_primaries"] = "BT.2020"
+                                    bitstream_details["color_primaries"] = "bt2020"
                                 logger.debug(
                                     "Found Mastering Display Colour Volume (HDR10) SEI."
                                 )
@@ -522,9 +498,9 @@ class BitstreamParser:
                                     ">HH", current_payload_data[:4]
                                 )
                                 bitstream_details["max_content_light_level"] = max_cll
-                                bitstream_details["max_frame_average_light_level"] = (
-                                    max_fall
-                                )
+                                bitstream_details[
+                                    "max_frame_average_light_level"
+                                ] = max_fall
                                 logger.debug(
                                     f"Found Content Light Level SEI: MaxCLL={max_cll}, MaxFALL={max_fall}"
                                 )
@@ -554,7 +530,7 @@ class BitstreamParser:
                                 transfer = current_payload_data[0]
                                 if transfer == 18:
                                     bitstream_details["transfer_characteristics"] = (
-                                        "ARIB STD-B67 (HLG)"
+                                        "arib-std-b67"
                                     )
                                     bitstream_details["hdr_format"] = "HLG"
                                     logger.debug(
@@ -571,15 +547,15 @@ class BitstreamParser:
         if bitstream_details["dolby_vision_profile"] is not None:
             bitstream_details["hdr_format"] = "Dolby Vision"
             if bitstream_details["color_primaries"] == "Unknown":
-                bitstream_details["color_primaries"] = "BT.2020"
+                bitstream_details["color_primaries"] = "bt2020"
             if bitstream_details["transfer_characteristics"] == "Unknown":
-                bitstream_details["transfer_characteristics"] = "SMPTE ST 2084 (PQ)"
+                bitstream_details["transfer_characteristics"] = "smpte2084"
             if bitstream_details["matrix_coefficients"] == "Unknown":
-                bitstream_details["matrix_coefficients"] = "BT.2020 non-constant"
+                bitstream_details["matrix_coefficients"] = "bt2020nc"
 
-        elif bitstream_details["transfer_characteristics"] == "ARIB STD-B67 (HLG)":
+        elif bitstream_details["transfer_characteristics"] == "arib-std-b67":
             bitstream_details["hdr_format"] = "HLG"
-        elif bitstream_details["transfer_characteristics"] == "SMPTE ST 2084 (PQ)":
+        elif bitstream_details["transfer_characteristics"] == "smpte2084":
             bitstream_details["hdr_format"] = "HDR (PQ)"
 
         logger.debug(f"Bitstream parsing result: {bitstream_details}")

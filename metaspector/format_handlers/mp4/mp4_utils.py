@@ -8,9 +8,34 @@ from typing import BinaryIO, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
-# ##############################################################################
-# MP4 Specific Global Helpers (used by Mp4Parser methods)
-# ##############################################################################
+TRANSFER_CHARACTERISTICS_MAP = {
+    1: "bt709",
+    4: "bt470m",
+    5: "bt470bg",
+    6: "smpte170m",
+    16: "smpte2084",
+    18: "arib-std-b67",
+    14: "smpte428",
+}
+COLOR_PRIMARIES_MAP = {
+    1: "bt709",
+    5: "smpte170m",
+    9: "bt2020",
+    10: "smpte428",
+    11: "smpte428",
+    12: "smpte431",
+    13: "smpte432",
+}
+MATRIX_COEFFICIENTS_MAP = {
+    0: "gbr",
+    1: "bt709",
+    5: "bt470bg",
+    6: "smpte170m",
+    9: "bt2020nc",
+    10: "bt2020c",
+    14: "bt2020nc",
+    15: "bt2020nc",
+}
 
 
 def _read_uint8(f: BinaryIO) -> Optional[int]:
