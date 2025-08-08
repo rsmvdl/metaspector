@@ -14,13 +14,21 @@
 
 * **Cover Art Extraction**: Easily extract embedded cover art.
 
-* **Multi-Format Support**: Currently supports:
+* **Multi-Format Support**: Easily work with major media formats like:
 
     * 🎬 **MP4/M4V/M4A** (MPEG-4 incl. parsing of proprietary atoms often seen in M4V files distributed by Apple Inc.)
 
     * 🎵 **MP3** (MPEG-1 Audio Layer III)
 
     * 🎧 **FLAC** (Free Lossless Audio Codec)
+
+* **Multi-Codec Support**: Easily work with major codec formats like:
+
+   * 🎬 **Video Codecs** AVC1, HEVC, AV1, VP9 (incl. Dolby Vision)
+
+   * 🎵 **Audio Codecs** E-AC3, AC3, AAC, MP3, FLAC (incl. Dolby Atmos)
+
+   * 📺💬 **Subtitles** tx3g, cea-608, mp4s, subp, clcp, text
 
 * **Flexible Output**:
 

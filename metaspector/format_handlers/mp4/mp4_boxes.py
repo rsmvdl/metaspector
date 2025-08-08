@@ -62,6 +62,13 @@ class MP4BoxParser:
         "sawb": "amr-wb",
     }
 
+    _subtitle_codec_map = {
+        "tx3g": "tx3g",
+        "c608": "cea-608",
+        "stpp": "ttml",
+        "wvtt": "webvtt",
+    }
+
     class _TrackCharacteristics:
         """Holds boolean flags for track characteristics from 'udta'."""
 
@@ -811,7 +818,7 @@ class MP4BoxParser:
                                 parsed_data[key_name] = parsed_value
                         elif key_name == "hd_video" and isinstance(parsed_value, int):
                             parsed_data[key_name] = bool(parsed_value)
-                            hd_map = {3: "2160p UHD", 2: "1080p FHD", 1: "720p HD"}
+                            hd_map = {3: "2160p UHD", 2: "1080p HD", 1: "720p HD"}
                             parsed_data["hd_video_definition"] = hd_map.get(
                                 parsed_value, "SD"
                             )
@@ -833,7 +840,7 @@ class MP4BoxParser:
                                     rating_unit = int(parts[2])
                                     parsed_data["rating_unit"] = rating_unit
                                     flag_map = {
-                                        400: "1080p FHD",
+                                        400: "1080p HD",
                                         300: "720p HD",
                                         200: "SD",
                                     }
@@ -997,24 +1004,24 @@ class MP4BoxParser:
         codec: Optional[str] = None
         name: Optional[str] = None
 
-        # The file pointer is at the start of the 'stsd' box content.
         # Skip version (1), flags (3), and number of entries (4).
         f.read(8)
         if f.tell() >= stsd_end:
             f.seek(stsd_end)
             return None, None
 
-        # Beginning of the first sample entry.
+        # Now we are at the beginning of the first sample entry.
         entry_type, _, entry_start, entry_end = _read_box_header(f)
         if not entry_type or entry_end > stsd_end:
             f.seek(stsd_end)
             return None, None
 
-        codec = entry_type.decode("ascii", errors="replace")
+        codec_tag = entry_type.decode("ascii", errors="replace")
+        codec = MP4BoxParser._subtitle_codec_map.get(codec_tag, codec_tag)
 
-        # file pointer 'f' is at the start of the sample entry's content.
+        # The file pointer 'f' is now at the start of the sample entry's content.
         # Look for a descriptive name inside this sample entry.
-        if entry_type in (b"tx3g", b"mp4s", b"subp", b"clcp", b"text"):
+        if entry_type in (b"tx3g", b"mp4s", b"subp", b"clcp", b"text", b"c608"):
             current_child_pos = f.tell()
             while current_child_pos < entry_end:
                 if entry_end - current_child_pos < 8:

@@ -427,23 +427,27 @@ class Mp4Parser(BaseMediaParser):
                                         break
 
                                     if stbl_type == b"stsd":
-                                        if hdlr_details.get("type") == b"soun":
+                                        handler_type_from_hdlr = hdlr_details.get(
+                                            "type"
+                                        )
+                                        if handler_type_from_hdlr == b"soun":
                                             audio_stsd_info = (
                                                 MP4BoxParser.parse_stsd_audio(
                                                     f, stbl_end
                                                 )
                                             )
                                             audio_info.update(audio_stsd_info)
-                                        elif hdlr_details.get("type") == b"vide":
+                                        elif handler_type_from_hdlr == b"vide":
                                             video_stsd_info = (
                                                 MP4BoxParser.parse_stsd_video(
                                                     f, stbl_end
                                                 )
                                             )
                                             video_info.update(video_stsd_info)
-                                        elif hdlr_details.get("type") in (
+                                        elif handler_type_from_hdlr in (
                                             b"sbtl",
                                             b"subt",
+                                            b"clcp",
                                         ):
                                             (
                                                 subtitle_codec,
@@ -606,7 +610,7 @@ class Mp4Parser(BaseMediaParser):
                 }
             )
 
-        elif handler_type in (b"sbtl", b"subt"):
+        elif handler_type in (b"sbtl", b"subt", b"clcp"):
             self.subtitle_tracks.append(
                 {
                     "index": index or 0,
