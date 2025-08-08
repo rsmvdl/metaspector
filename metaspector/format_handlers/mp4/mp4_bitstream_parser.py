@@ -498,9 +498,9 @@ class BitstreamParser:
                                     ">HH", current_payload_data[:4]
                                 )
                                 bitstream_details["max_content_light_level"] = max_cll
-                                bitstream_details[
-                                    "max_frame_average_light_level"
-                                ] = max_fall
+                                bitstream_details["max_frame_average_light_level"] = (
+                                    max_fall
+                                )
                                 logger.debug(
                                     f"Found Content Light Level SEI: MaxCLL={max_cll}, MaxFALL={max_fall}"
                                 )

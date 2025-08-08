@@ -51,7 +51,10 @@ class Mp3Parser(BaseMediaParser):
             f, self.id3_tag_size, self.total_file_size
         )
         if audio_info:
-            if "duration_seconds" in self.metadata and self.metadata["duration_seconds"] is not None:
+            if (
+                "duration_seconds" in self.metadata
+                and self.metadata["duration_seconds"] is not None
+            ):
                 try:
                     duration_from_tag = int(self.metadata["duration_seconds"]) / 1000.0
                     audio_info["duration_seconds"] = duration_from_tag
@@ -140,6 +143,7 @@ class Mp3Parser(BaseMediaParser):
             "codec",
             "codec_tag_string",
             "channels",
+            "channel_layout",
             "sample_rate",
             "bits_per_sample",
             "bitrate_kbps",
@@ -238,7 +242,7 @@ class Mp3Parser(BaseMediaParser):
             self.metadata[key] = value
 
     def _process_metadata_for_output(
-            self, raw_metadata: Dict[str, Any]
+        self, raw_metadata: Dict[str, Any]
     ) -> Dict[str, Any]:
         processed_metadata = {}
         output_order = [
@@ -286,15 +290,15 @@ class Mp3Parser(BaseMediaParser):
 
         for key, value in temp_data.items():
             if (
-                    value is not None
-                    and value != ""
-                    and key
-                    not in [
-                "bitrate_kbps",
-                "unique_file_identifier",
-                "tlen",
-                "tdat",
-            ]
+                value is not None
+                and value != ""
+                and key
+                not in [
+                    "bitrate_kbps",
+                    "unique_file_identifier",
+                    "tlen",
+                    "tdat",
+                ]
             ):
                 processed_metadata[key] = value
 
@@ -304,7 +308,9 @@ class Mp3Parser(BaseMediaParser):
             processed_metadata["disc_total"] = int(processed_metadata["disc_total"])
         if "itunesadvisory" in processed_metadata:
             try:
-                processed_metadata["itunesadvisory"] = int(processed_metadata["itunesadvisory"])
+                processed_metadata["itunesadvisory"] = int(
+                    processed_metadata["itunesadvisory"]
+                )
             except (ValueError, TypeError):
                 pass
         return processed_metadata

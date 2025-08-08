@@ -40,11 +40,46 @@ def get_language_matrix() -> List[Tuple[str, ...]]:
         ("da-DK", "da", "dan", "Danish", "Dansk", "Denmark"),
         ("de-DE", "de", "deu", "German", "Deutsch (Deutschland)", "Germany"),  # Default
         ("de-AT", "de", "deu", "German (Austria)", "Deutsch (Österreich)", "Austria"),
-        ("de-CH", "de", "deu", "German (Switzerland)", "Deutsch (Schweiz)", "Switzerland"),
-        ("de-LI", "de", "deu", "German (Liechtenstein)", "Deutsch (Liechtenstein)", "Liechtenstein"),
-        ("en-US", "en", "eng", "English", "English (United States)", "United States of America"),  # Default
-        ("en-GB", "en", "eng", "English (United Kingdom)", "English (United Kingdom)", "United Kingdom"),
-        ("en-AU", "en", "eng", "English (Australia)", "English (Australia)", "Australia"),
+        (
+            "de-CH",
+            "de",
+            "deu",
+            "German (Switzerland)",
+            "Deutsch (Schweiz)",
+            "Switzerland",
+        ),
+        (
+            "de-LI",
+            "de",
+            "deu",
+            "German (Liechtenstein)",
+            "Deutsch (Liechtenstein)",
+            "Liechtenstein",
+        ),
+        (
+            "en-US",
+            "en",
+            "eng",
+            "English",
+            "English (United States)",
+            "United States of America",
+        ),  # Default
+        (
+            "en-GB",
+            "en",
+            "eng",
+            "English (United Kingdom)",
+            "English (United Kingdom)",
+            "United Kingdom",
+        ),
+        (
+            "en-AU",
+            "en",
+            "eng",
+            "English (Australia)",
+            "English (Australia)",
+            "Australia",
+        ),
         ("en-CA", "en", "eng", "English (Canada)", "English (Canada)", "Canada"),
         ("dv-MV", "dv", "div", "Divehi", "ދިވެހި (Divehi)", "Maldives"),
         ("dz-BT", "dz", "dzo", "Dzongkha", "རྫོང་ཁ་ (Dzongkha)", "Bhutan"),
@@ -52,9 +87,23 @@ def get_language_matrix() -> List[Tuple[str, ...]]:
         ("el-GR", "el", "ell", "Greek", "Ελληνικά", "Greece"),
         ("eo-001", "eo", "epo", "Esperanto", "Esperanto", "International"),
         ("es-ES", "es", "spa", "Spanish", "Español (España)", "Spain"),  # Default
-        ("es-419", "es", "spa", "Spanish (Latin America)", "Español (Latinoamérica)", "Latin America"),
+        (
+            "es-419",
+            "es",
+            "spa",
+            "Spanish (Latin America)",
+            "Español (Latinoamérica)",
+            "Latin America",
+        ),
         ("es-MX", "es", "spa", "Spanish (Mexico)", "Español (México)", "Mexico"),
-        ("es-US", "es", "spa", "Spanish (United States)", "Español (Estados Unidos)", "United States of America"),
+        (
+            "es-US",
+            "es",
+            "spa",
+            "Spanish (United States)",
+            "Español (Estados Unidos)",
+            "United States of America",
+        ),
         ("et-EE", "et", "est", "Estonian", "Eesti keel", "Estonia"),
         ("eu-ES", "eu", "eus", "Basque", "Euskara", "Spain"),
         ("fa-IR", "fa", "fas", "Persian", "فارسی", "Iran"),
@@ -148,7 +197,14 @@ def get_language_matrix() -> List[Tuple[str, ...]]:
         ("pi-IN", "pi", "pli", "Pali", "पालि", "India"),
         ("pl-PL", "pl", "pol", "Polish", "Polski", "Poland"),
         ("ps-AF", "ps", "pus", "Pashto", "پښ토", "Afghanistan"),
-        ("pt-PT", "pt", "por", "Portuguese", "Português (Portugal)", "Portugal"),  # Default
+        (
+            "pt-PT",
+            "pt",
+            "por",
+            "Portuguese",
+            "Português (Portugal)",
+            "Portugal",
+        ),  # Default
         ("pt-BR", "pt", "por", "Portuguese (Brazil)", "Português (Brasil)", "Brazil"),
         ("qu-PE", "qu", "que", "Quechua", "Runa Simi", "Peru"),
         ("rc-RE", "rc", "rcf", "Réunion Creole", "Kréol rénioné", "Reunion"),
@@ -162,7 +218,14 @@ def get_language_matrix() -> List[Tuple[str, ...]]:
         ("sd-PK", "sd", "snd", "Sindhi", "سنڌي", "Pakistan"),
         ("se-NO", "se", "sme", "Northern Sami", "Sámegiella", "Norway"),
         ("sg-CF", "sg", "sag", "Sango", "Sango", "Central African Republic"),
-        ("sh-BA", "sh", "hbs", "Serbo-Croatian", "Srpskohrvatski", "Bosnia and Herzegovina"),
+        (
+            "sh-BA",
+            "sh",
+            "hbs",
+            "Serbo-Croatian",
+            "Srpskohrvatski",
+            "Bosnia and Herzegovina",
+        ),
         ("si-LK", "si", "sin", "Sinhala", "සිංහල", "Sri Lanka"),
         ("sk-SK", "sk", "slk", "Slovak", "Slovenčina", "Slovakia"),
         ("sl-SI", "sl", "slv", "Slovenian", "Slovenščina", "Slovenia"),
@@ -190,7 +253,14 @@ def get_language_matrix() -> List[Tuple[str, ...]]:
         ("tt-RU", "tt", "tat", "Tatar", "татарча", "Russian Federation"),
         ("tw-GH", "tw", "twi", "Twi", "Twi", "Ghana"),
         ("ty-PF", "ty", "tah", "Tahitian", "Reo Tahiti", "French Polynesia"),
-        ("zh-CN", "zh", "zho", "Chinese (Simplified)", "中文 (中国大陆)", "China"),  # Default
+        (
+            "zh-CN",
+            "zh",
+            "zho",
+            "Chinese (Simplified)",
+            "中文 (中国大陆)",
+            "China",
+        ),  # Default
         ("zh-TW", "zh", "zho", "Chinese (Traditional)", "中文 (臺灣)", "Taiwan"),
         ("zh-HK", "zh", "zho", "Chinese (Hong Kong)", "中文 (香港)", "Hong Kong"),
         ("ug-CN", "ug", "uig", "Uyghur", "ئۇيغۇرچە (Uyghurche)", "China"),
@@ -206,7 +276,7 @@ def get_language_matrix() -> List[Tuple[str, ...]]:
         ("yi-001", "yi", "yid", "Yiddish", "ייִדיש", "International"),
         ("yo-NG", "yo", "yor", "Yoruba", "Yorùbá", "Nigeria"),
         ("za-CN", "za", "zha", "Zhuang", "Saɯ cueŋƅ", "China"),
-        ("zu-ZA", "zu", "zul", "Zulu", "isiZulu", "South Africa")
+        ("zu-ZA", "zu", "zul", "Zulu", "isiZulu", "South Africa"),
     ]
     return language_matrix_references
 
@@ -227,8 +297,7 @@ _iso639_2_defaults = {
     "zho": "zh-CN",
 }
 _iso639_2_map = {
-    code: _bcp47_map.get(bcp47)
-    for code, bcp47 in _iso639_2_defaults.items()
+    code: _bcp47_map.get(bcp47) for code, bcp47 in _iso639_2_defaults.items()
 }
 
 # Map for 2-letter codes to their designated default BCP 47 code
@@ -253,7 +322,7 @@ def get_long_language_name(code: str) -> Optional[str]:
         return None
 
     # 1. Direct BCP 47 match (most specific)
-    if '-' in code and code in _bcp47_map:
+    if "-" in code and code in _bcp47_map:
         return _bcp47_map[code]
 
     # 2. ISO 639-2/B (3-letter) match

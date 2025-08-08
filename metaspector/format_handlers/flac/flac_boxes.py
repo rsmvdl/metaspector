@@ -20,11 +20,26 @@ def parse_streaminfo_block(f: BinaryIO, audio_tracks: List[Dict]) -> None:
     total_samples = props & 0xFFFFFFFFF
     duration = total_samples / sample_rate if sample_rate > 0 else 0.0
 
+    # Determine channels and channel layout
+    num_channels = ((props >> 41) & 0x07) + 1
+    channel_layout_map = {
+        1: "1.0",
+        2: "2.0",
+        3: "3.0",
+        4: "4.0",
+        5: "5.0",
+        6: "5.1",
+        7: "6.1",
+        8: "7.1",
+    }
+    channel_layout = channel_layout_map.get(num_channels)
+
     audio_tracks.append(
         {
             "codec": "flac",
             "codec_tag_string": "FLAC (Free Lossless Audio Codec)",
-            "channels": ((props >> 41) & 0x07) + 1,
+            "channels": num_channels,
+            "channel_layout": channel_layout,
             "sample_rate": sample_rate,
             "bits_per_sample": ((props >> 36) & 0x1F) + 1,
             "duration_seconds": duration,
@@ -163,7 +178,16 @@ def _apply_metadata_field(metadata: dict, key: str, value: Any, key_map: Dict):
             metadata[output_key.replace("_number", "_total")] = int(total)
         except (ValueError, TypeError):
             metadata[output_key] = value
-    elif output_key in ["track_number", "disc_number", "track_total", "disc_total", "itunesadvisory", "barcode", "duration_seconds", "tempo"]:
+    elif output_key in [
+        "track_number",
+        "disc_number",
+        "track_total",
+        "disc_total",
+        "itunesadvisory",
+        "barcode",
+        "duration_seconds",
+        "tempo",
+    ]:
         try:
             metadata[output_key] = int(value)
         except (ValueError, TypeError):

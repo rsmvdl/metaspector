@@ -107,6 +107,19 @@ class MP4BoxParser:
                 self.easy_to_read = True
 
     @staticmethod
+    def _read_mp4_descriptor_length(f: BinaryIO) -> int:
+        """Reads a variable-length size value from an MPEG-4 descriptor."""
+        length = 0
+        for _ in range(4):  # The size value is encoded in at most 4 bytes
+            byte = _read_uint8(f)
+            if byte is None:
+                return 0
+            length = (length << 7) | (byte & 0x7F)
+            if not (byte & 0x80):  # The MSB of the last byte is 0
+                break
+        return length
+
+    @staticmethod
     def _unescape_nal_payload(payload: bytes) -> bytes:
         """Removes emulation prevention bytes (0x03) from a NAL unit payload."""
         res = bytearray()
@@ -149,7 +162,19 @@ class MP4BoxParser:
 
             chroma_format_idc, bit_depth = 1, 8
             if profile_idc in [
-                100, 110, 122, 244, 44, 83, 86, 118, 128, 138, 139, 134, 135,
+                100,
+                110,
+                122,
+                244,
+                44,
+                83,
+                86,
+                118,
+                128,
+                138,
+                139,
+                134,
+                135,
             ]:
                 chroma_format_idc = reader.read_ue()
                 if chroma_format_idc == 3:
@@ -287,7 +312,6 @@ class MP4BoxParser:
                 else:  # Should not happen in valid streams
                     return None
 
-            # Construct final string
             if bit_depth > 8:
                 return f"{pix_fmt_base}{bit_depth}le"
             else:
@@ -418,7 +442,7 @@ class MP4BoxParser:
     @staticmethod
     def parse_udta(
         f: BinaryIO, udta_end: int
-    ) -> tuple["_TrackCharacteristics", Optional[str]]:
+    ) -> tuple[_TrackCharacteristics, Optional[str]]:
         """
         Parses 'udta' box for 'tagc' boxes (track characteristics) and
         a descriptive track name ('©nam', 'name', 'titl').
@@ -727,9 +751,9 @@ class MP4BoxParser:
                                 raw_data, parsed_data["cover_art_mime"]
                             )
                             if dimensions:
-                                parsed_data[
-                                    "cover_art_dimensions"
-                                ] = f"{dimensions[0]}x{dimensions[1]}"
+                                parsed_data["cover_art_dimensions"] = (
+                                    f"{dimensions[0]}x{dimensions[1]}"
+                                )
                         else:
                             has_cover_art = True
                             parsed_data["cover_art_mime"] = "application/octet-stream"
@@ -742,10 +766,9 @@ class MP4BoxParser:
                     )
 
                     if parsed_value is not None:
-                        if (
-                            isinstance(parsed_value, str)
-                            and parsed_value.strip().startswith("<?xml")
-                        ):
+                        if isinstance(
+                            parsed_value, str
+                        ) and parsed_value.strip().startswith("<?xml"):
                             try:
                                 plist_data = plistlib.loads(
                                     parsed_value.encode("utf-8")
@@ -781,9 +804,9 @@ class MP4BoxParser:
                             try:
                                 num, total = map(int, parsed_value.split("/", 1))
                                 parsed_data[key_name] = num
-                                parsed_data[
-                                    key_name.replace("_number", "_total")
-                                ] = str(total)
+                                parsed_data[key_name.replace("_number", "_total")] = (
+                                    str(total)
+                                )
                             except (ValueError, TypeError):
                                 parsed_data[key_name] = parsed_value
                         elif key_name == "hd_video" and isinstance(parsed_value, int):
@@ -802,9 +825,9 @@ class MP4BoxParser:
                                 parsed_data["rating_system"] = system
                                 parsed_data["rating_label"] = label
                                 if system and label:
-                                    parsed_data[
-                                        "rating_age_classification"
-                                    ] = get_age_classification(system, label)
+                                    parsed_data["rating_age_classification"] = (
+                                        get_age_classification(system, label)
+                                    )
 
                                 try:
                                     rating_unit = int(parts[2])
@@ -981,7 +1004,7 @@ class MP4BoxParser:
             f.seek(stsd_end)
             return None, None
 
-        # Now we are at the beginning of the first sample entry.
+        # Beginning of the first sample entry.
         entry_type, _, entry_start, entry_end = _read_box_header(f)
         if not entry_type or entry_end > stsd_end:
             f.seek(stsd_end)
@@ -989,7 +1012,7 @@ class MP4BoxParser:
 
         codec = entry_type.decode("ascii", errors="replace")
 
-        # The file pointer 'f' is now at the start of the sample entry's content.
+        # file pointer 'f' is at the start of the sample entry's content.
         # Look for a descriptive name inside this sample entry.
         if entry_type in (b"tx3g", b"mp4s", b"subp", b"clcp", b"text"):
             current_child_pos = f.tell()
@@ -1056,27 +1079,67 @@ class MP4BoxParser:
         current_pos = f.tell()
         while current_pos < entry_end:
             f.seek(current_pos)
-            child_type, _, _, child_end = _read_box_header(f)
+            child_type, _, child_start, child_end = _read_box_header(f)
             if not child_type or child_end > entry_end:
                 break
 
-            if child_type == b"dac3":
-                f.seek(1, 1)
+            if child_type == b"esds":
+                f.seek(child_start + 8 + 4)  # Seek past box header and version/flags
+
+                # ES_Descriptor (tag 0x03)
+                if _read_uint8(f) == 0x03:
+                    MP4BoxParser._read_mp4_descriptor_length(f)
+                    f.read(2)  # ES_ID
+                    f.read(1)  # streamPriority
+
+                    # DecoderConfigDescriptor (tag 0x04)
+                    if _read_uint8(f) == 0x04:
+                        MP4BoxParser._read_mp4_descriptor_length(f)
+                        f.read(
+                            13
+                        )  # objectTypeIndication, streamType, bufferSizeDB, etc.
+
+                        # DecoderSpecificInfo (tag 0x05) -> AudioSpecificConfig
+                        if _read_uint8(f) == 0x05:
+                            dsi_len = MP4BoxParser._read_mp4_descriptor_length(f)
+                            if dsi_len >= 2:
+                                asc_data = f.read(2)
+                                reader = BitReader(asc_data)
+                                reader.read_bits(5)  # audioObjectType
+                                reader.read_bits(4)  # samplingFrequencyIndex
+                                channel_config = reader.read_bits(4)
+
+                                channel_map = {
+                                    1: (1, "1.0"),  # Mono
+                                    2: (2, "2.0"),  # Stereo
+                                    3: (3, "3.0"),  # C, L, R
+                                    4: (4, "4.0"),  # C, L, R, Back S
+                                    5: (5, "5.0"),  # C, L, R, Ls, Rs
+                                    6: (6, "5.1"),  # C, L, R, Ls, Rs, LFE
+                                    7: (8, "7.1"),  # C, L, R, Ls, Rs, LFE, Lrs, Rrs
+                                }
+
+                                if channel_config in channel_map:
+                                    count, layout = channel_map[channel_config]
+                                    audio_details["channels"] = count
+                                    channel_layout = layout
+                break
+
+            elif child_type == b"dac3":
+                f.read(1)
                 bits = _read_uint8(f)
                 if bits is not None:
-                    acmod = (bits >> 5) & 0x07
-                    lfeon = (bits >> 4) & 0x01
-                    ac3_channels_map = {0: 2, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 5, 7: 5}
+                    acmod = (bits >> 3) & 0x07
+                    lfeon = (bits >> 2) & 0x01
+
+                    ac3_channels_map = {0: 2, 1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5}
                     main_channels = ac3_channels_map.get(acmod, 0)
                     audio_details["channels"] = main_channels + lfeon
-                    layouts = {
-                        0: "1+1",
-                        1: f"1.{lfeon}",
-                        2: f"2.{lfeon}",
-                        3: f"3.{lfeon}",
-                        4: f"4.{lfeon}",
-                    }
-                    channel_layout = layouts.get(acmod, f"5.{lfeon}")
+
+                    if acmod == 0:
+                        channel_layout = "1+1"
+                    else:
+                        channel_layout = f"{main_channels}.{lfeon}"
                 break
 
             elif child_type == b"dec3":
@@ -1118,25 +1181,31 @@ class MP4BoxParser:
 
     @staticmethod
     def parse_stsd_video(
-            f: BinaryIO,
-            stsd_end: int,
-            sample_data: Optional[bytes] = None,
-            moov_start: Optional[int] = None,
-            moov_end: Optional[int] = None,
-            index: Optional[int] = None,
+        f: BinaryIO,
+        stsd_end: int,
     ) -> Dict[str, Any]:
         """
         Parses 'stsd' for video track details including resolution and HDR format.
         (Refactored for clarity and robustness).
         """
-        # 1. Initialization
+        # Initialization
         video_details = {
-            "codec": "unknown", "codec_tag_string": "unknown", "width": 0, "height": 0,
-            "pixel_format": None, "hdr_format": "SDR", "color_primaries": "Unknown",
-            "transfer_characteristics": "Unknown", "matrix_coefficients": "Unknown",
-            "color_space": "Unknown", "color_transfer": "Unknown", "color_range": "Unknown",
-            "dolby_vision_profile": None, "dolby_vision_level": None,
-            "dolby_vision": False, "dolby_vision_sdr_compatible": False,
+            "codec": "unknown",
+            "codec_tag_string": "unknown",
+            "width": 0,
+            "height": 0,
+            "pixel_format": None,
+            "hdr_format": "SDR",
+            "color_primaries": "Unknown",
+            "transfer_characteristics": "Unknown",
+            "matrix_coefficients": "Unknown",
+            "color_space": "Unknown",
+            "color_transfer": "Unknown",
+            "color_range": "Unknown",
+            "dolby_vision_profile": None,
+            "dolby_vision_level": None,
+            "dolby_vision": False,
+            "dolby_vision_sdr_compatible": False,
         }
 
         f.seek(8, 1)
@@ -1148,17 +1217,20 @@ class MP4BoxParser:
             return video_details
 
         codec_tag = entry_type.decode("ascii", "replace")
-        video_details.update({
-            "codec_tag_string": codec_tag,
-            "codec": MP4BoxParser._video_codec_map.get(codec_tag, codec_tag),
-        })
+        video_details.update(
+            {
+                "codec_tag_string": codec_tag,
+                "codec": MP4BoxParser._video_codec_map.get(codec_tag, codec_tag),
+            }
+        )
 
         f.seek(entry_start + 8 + 24)
         width, height = _read_uint16(f), _read_uint16(f)
-        if width: video_details["width"] = width
-        if height: video_details["height"] = height
+        if width:
+            video_details["width"] = width
+        if height:
+            video_details["height"] = height
 
-        # 2. Data Gathering from Child Boxes
         current_pos = entry_start + 8 + 78
         has_mdcv, container_colr_found = False, False
         vpc_data: Dict[str, int] = {}
@@ -1184,7 +1256,9 @@ class MP4BoxParser:
                     video_details["dolby_vision_level"] = (val >> 3) & 0x3F
             elif child_type in pixel_format_parsers:
                 if video_details["pixel_format"] is None:
-                    video_details["pixel_format"] = pixel_format_parsers[child_type](f, child_end)
+                    video_details["pixel_format"] = pixel_format_parsers[child_type](
+                        f, child_end
+                    )
             elif child_type == b"vpcC":
                 vpc_data = MP4BoxParser._parse_vpc_config(f, child_end)
             elif child_type == b"colr":
@@ -1193,8 +1267,12 @@ class MP4BoxParser:
                 param_type = f.read(4)
                 p, t, m = _read_uint16(f), _read_uint16(f), _read_uint16(f)
                 video_details["color_primaries"] = COLOR_PRIMARIES_MAP.get(p, str(p))
-                video_details["transfer_characteristics"] = TRANSFER_CHARACTERISTICS_MAP.get(t, str(t))
-                video_details["matrix_coefficients"] = MATRIX_COEFFICIENTS_MAP.get(m, str(m))
+                video_details["transfer_characteristics"] = (
+                    TRANSFER_CHARACTERISTICS_MAP.get(t, str(t))
+                )
+                video_details["matrix_coefficients"] = MATRIX_COEFFICIENTS_MAP.get(
+                    m, str(m)
+                )
                 if param_type == b"nclx" and (rb := _read_uint8(f)) is not None:
                     video_details["color_range"] = "full" if (rb >> 7) & 1 else "tv"
             elif child_type == b"mdcv":
@@ -1202,37 +1280,57 @@ class MP4BoxParser:
 
             current_pos = child_end
 
-        # 3. Interpretation and Finalization
         # Finalize VP9 pixel format using all gathered info
         if codec_tag == "vp09" and vpc_data:
             bit_depth = vpc_data.get("bit_depth")
             chroma = vpc_data.get("chroma_subsampling")
-            if video_details.get("transfer_characteristics") in ("smpte2084",
-                                                                 "arib-std-b67") and bit_depth is not None and bit_depth < 10:
+            if (
+                video_details.get("transfer_characteristics")
+                in ("smpte2084", "arib-std-b67")
+                and bit_depth is not None
+                and bit_depth < 10
+            ):
                 bit_depth = 10  # Correct bit_depth based on more reliable HDR signal from 'colr' box
             if chroma is not None and bit_depth is not None:
                 pix_fmt_base = {0: "yuv420p", 1: "yuv422p", 2: "yuv444p"}.get(chroma)
                 if pix_fmt_base:
-                    video_details["pixel_format"] = f"{pix_fmt_base}{bit_depth}le" if bit_depth > 8 else pix_fmt_base
+                    video_details["pixel_format"] = (
+                        f"{pix_fmt_base}{bit_depth}le"
+                        if bit_depth > 8
+                        else pix_fmt_base
+                    )
 
         # Use vpcC as a fallback for color info if 'colr' box was missing
         if not container_colr_found and vpc_data:
-            if (p := vpc_data.get("colour_primaries")) is not None: video_details[
-                "color_primaries"] = COLOR_PRIMARIES_MAP.get(p, str(p))
-            if (t := vpc_data.get("transfer_characteristics")) is not None: video_details[
-                "transfer_characteristics"] = TRANSFER_CHARACTERISTICS_MAP.get(t, str(t))
-            if (m := vpc_data.get("matrix_coefficients")) is not None: video_details[
-                "matrix_coefficients"] = MATRIX_COEFFICIENTS_MAP.get(m, str(m))
+            if (p := vpc_data.get("colour_primaries")) is not None:
+                video_details["color_primaries"] = COLOR_PRIMARIES_MAP.get(p, str(p))
+            if (t := vpc_data.get("transfer_characteristics")) is not None:
+                video_details["transfer_characteristics"] = (
+                    TRANSFER_CHARACTERISTICS_MAP.get(t, str(t))
+                )
+            if (m := vpc_data.get("matrix_coefficients")) is not None:
+                video_details["matrix_coefficients"] = MATRIX_COEFFICIENTS_MAP.get(
+                    m, str(m)
+                )
 
         # Determine HDR Format
         if video_details["dolby_vision"]:
-            if video_details["color_primaries"] == "Unknown": video_details["color_primaries"] = "bt2020"
-            if video_details["transfer_characteristics"] == "Unknown": video_details[
-                "transfer_characteristics"] = "smpte2084"
-            if video_details["matrix_coefficients"] == "Unknown": video_details["matrix_coefficients"] = "bt2020nc"
-            is_hdr10_base = video_details["transfer_characteristics"] == "smpte2084" and has_mdcv
-            video_details["hdr_format"] = "HDR10, Dolby Vision" if is_hdr10_base else "Dolby Vision"
-            if video_details.get("dolby_vision_profile") in {8, 10} and codec_tag in {"hvc1", "av01"}:
+            if video_details["color_primaries"] == "Unknown":
+                video_details["color_primaries"] = "bt2020"
+            if video_details["transfer_characteristics"] == "Unknown":
+                video_details["transfer_characteristics"] = "smpte2084"
+            if video_details["matrix_coefficients"] == "Unknown":
+                video_details["matrix_coefficients"] = "bt2020nc"
+            is_hdr10_base = (
+                video_details["transfer_characteristics"] == "smpte2084" and has_mdcv
+            )
+            video_details["hdr_format"] = (
+                "HDR10, Dolby Vision" if is_hdr10_base else "Dolby Vision"
+            )
+            if video_details.get("dolby_vision_profile") in {8, 10} and codec_tag in {
+                "hvc1",
+                "av01",
+            }:
                 video_details["dolby_vision_sdr_compatible"] = True
         elif video_details["transfer_characteristics"] == "arib-std-b67":
             video_details["hdr_format"] = "HLG"
@@ -1240,18 +1338,27 @@ class MP4BoxParser:
             video_details["hdr_format"] = "HDR10" if has_mdcv else "HDR (PQ)"
 
         # Populate derived fields
-        if video_details.get("matrix_coefficients") != "Unknown": video_details["color_space"] = video_details[
-            "matrix_coefficients"]
-        if video_details.get("transfer_characteristics") != "Unknown": video_details["color_transfer"] = video_details[
-            "transfer_characteristics"]
-        if video_details.get("color_range") == "Unknown": video_details["color_range"] = "tv"
+        if video_details.get("matrix_coefficients") != "Unknown":
+            video_details["color_space"] = video_details["matrix_coefficients"]
+        if video_details.get("transfer_characteristics") != "Unknown":
+            video_details["color_transfer"] = video_details["transfer_characteristics"]
+        if video_details.get("color_range") == "Unknown":
+            video_details["color_range"] = "tv"
 
-        # 4. Final Cleanup
         if not video_details.get("dolby_vision"):
-            for key in ["dolby_vision", "dolby_vision_profile", "dolby_vision_level", "dolby_vision_sdr_compatible"]:
+            for key in [
+                "dolby_vision",
+                "dolby_vision_profile",
+                "dolby_vision_level",
+                "dolby_vision_sdr_compatible",
+            ]:
                 video_details.pop(key, None)
         if video_details.get("hdr_format") == "SDR":
-            for key in ["color_primaries", "matrix_coefficients", "transfer_characteristics"]:
+            for key in [
+                "color_primaries",
+                "matrix_coefficients",
+                "transfer_characteristics",
+            ]:
                 video_details.pop(key, None)
 
         f.seek(stsd_end)

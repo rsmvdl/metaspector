@@ -33,10 +33,10 @@ def parse_id3v2_tag(f: BinaryIO, apply_metadata_func: Callable) -> Dict[str, Any
     version_major = header[3]
     flags = header[5]
     size = (
-            ((header[6] & 0x7F) << 21)
-            | ((header[7] & 0x7F) << 14)
-            | ((header[8] & 0x7F) << 7)
-            | (header[9] & 0x7F)
+        ((header[6] & 0x7F) << 21)
+        | ((header[7] & 0x7F) << 14)
+        | ((header[8] & 0x7F) << 7)
+        | (header[9] & 0x7F)
     )
     id3_tag_size = 10 + size
     id3_tag_end = initial_pos + id3_tag_size
@@ -50,8 +50,8 @@ def parse_id3v2_tag(f: BinaryIO, apply_metadata_func: Callable) -> Dict[str, Any
             return {"size": id3_tag_size, "has_image": False}
         extended_header_size = struct.unpack(">I", extended_header_size_bytes)[0]
         if (
-                extended_header_size > 4
-                and extended_header_start_pos + extended_header_size <= id3_tag_end
+            extended_header_size > 4
+            and extended_header_start_pos + extended_header_size <= id3_tag_end
         ):
             f.read(extended_header_size - 4)
         else:
@@ -77,10 +77,10 @@ def parse_id3v2_tag(f: BinaryIO, apply_metadata_func: Callable) -> Dict[str, Any
 
         if version_major == 4:
             frame_size = (
-                    ((frame_header[4] & 0x7F) << 21)
-                    | ((frame_header[5] & 0x7F) << 14)
-                    | ((frame_header[6] & 0x7F) << 7)
-                    | (frame_header[7] & 0x7F)
+                ((frame_header[4] & 0x7F) << 21)
+                | ((frame_header[5] & 0x7F) << 14)
+                | ((frame_header[6] & 0x7F) << 7)
+                | (frame_header[7] & 0x7F)
             )
         else:
             frame_size = struct.unpack(">I", frame_header[4:8])[0]
@@ -141,9 +141,9 @@ def _parse_id3v2_frame_content(frame_id: str, data: bytes) -> Dict[str, Any]:
         desc_end_index = -1
         if null_term_size == 2:
             for i in range(
-                    desc_start_offset, len(data) - null_term_size + 1, null_term_size
+                desc_start_offset, len(data) - null_term_size + 1, null_term_size
             ):
-                if data[i: i + null_term_size] == b"\x00" * null_term_size:
+                if data[i : i + null_term_size] == b"\x00" * null_term_size:
                     desc_end_index = i
                     break
         else:
@@ -151,7 +151,7 @@ def _parse_id3v2_frame_content(frame_id: str, data: bytes) -> Dict[str, Any]:
         if desc_end_index == -1:
             text_content = data[desc_start_offset:]
         else:
-            text_content = data[desc_end_index + null_term_size:]
+            text_content = data[desc_end_index + null_term_size :]
         decoded_lyrics = decode_id3_string(text_content, encoding)
         normalized_lyrics = (
             decoded_lyrics.replace("\r\n", "\n").replace("\r", "\n").strip()
@@ -167,7 +167,7 @@ def _parse_id3v2_frame_content(frame_id: str, data: bytes) -> Dict[str, Any]:
         key_end_index = -1
         if null_term_size == 2:
             for i in range(0, len(content) - null_term_size + 1, null_term_size):
-                if content[i: i + null_term_size] == b"\x00" * null_term_size:
+                if content[i : i + null_term_size] == b"\x00" * null_term_size:
                     key_end_index = i
                     break
         else:
@@ -176,7 +176,7 @@ def _parse_id3v2_frame_content(frame_id: str, data: bytes) -> Dict[str, Any]:
             logger.warning("TXXX frame: missing key null terminator.")
             return {}
         key_raw = content[:key_end_index]
-        value_raw = content[key_end_index + null_term_size:]
+        value_raw = content[key_end_index + null_term_size :]
         key = decode_id3_string(key_raw, encoding)
         value = decode_id3_string(value_raw, encoding)
         normalized_key = ID3_KEY_MAP.get(f"TXXX:{key.upper()}", key.lower())
@@ -226,7 +226,7 @@ def _parse_id3v2_frame_content(frame_id: str, data: bytes) -> Dict[str, Any]:
         if owner_id_end == -1:
             return {}
         owner_id = data[1:owner_id_end].decode("latin-1", errors="replace").strip()
-        identifier_data = data[owner_id_end + 1:]
+        identifier_data = data[owner_id_end + 1 :]
         if owner_id == "http://www.id3.org/uslt/iTunes":
             try:
                 if identifier_data.startswith(b"isrc"):
@@ -249,7 +249,7 @@ def _parse_id3v2_frame_content(frame_id: str, data: bytes) -> Dict[str, Any]:
 
 
 def search_for_image_data(
-        f: BinaryIO, id3_tag_size: int, total_file_size: int
+    f: BinaryIO, id3_tag_size: int, total_file_size: int
 ) -> Optional[Dict[str, Any]]:
     """
     Searches for an image embedded in the audio data if not found in the ID3 tag.
@@ -283,7 +283,7 @@ def search_for_image_data(
 
 
 def get_mpeg_audio_properties(
-        f: BinaryIO, id3_tag_size: int, total_file_size: int
+    f: BinaryIO, id3_tag_size: int, total_file_size: int
 ) -> Optional[Dict[str, Any]]:
     """
     Searches for and parses the first valid MPEG audio frame to get properties.
@@ -296,6 +296,7 @@ def get_mpeg_audio_properties(
     first_frame_bitrate = None
     first_frame_sample_rate = None
     first_frame_channels = None
+    first_frame_channel_layout = None  # Added for channel layout
     first_frame_codec = None
     first_frame_codec_tag = None
     first_frame_samples_per_frame = None
@@ -306,7 +307,7 @@ def get_mpeg_audio_properties(
         if not data_chunk:
             break
         for i in range(len(data_chunk) - 4):
-            header_bytes = data_chunk[i: i + 4]
+            header_bytes = data_chunk[i : i + 4]
             if header_bytes[0] == 0xFF and (header_bytes[1] & 0xE0) == 0xE0:
                 try:
                     header_int = struct.unpack(">I", header_bytes)[0]
@@ -319,11 +320,11 @@ def get_mpeg_audio_properties(
                 padding_bit = (header_int >> 9) & 0x01
                 channel_mode_bits = (header_int >> 6) & 0x03
                 if (
-                        mpeg_version_bits == 0b01
-                        or layer_bits == 0b00
-                        or bitrate_index == 0
-                        or bitrate_index == 0x0F
-                        or sample_rate_index == 0x03
+                    mpeg_version_bits == 0b01
+                    or layer_bits == 0b00
+                    or bitrate_index == 0
+                    or bitrate_index == 0x0F
+                    or sample_rate_index == 0x03
                 ):
                     continue
                 mpeg_version = MPEG_VERSIONS.get(mpeg_version_bits)
@@ -340,18 +341,29 @@ def get_mpeg_audio_properties(
                 )
                 if bitrate_kbps_from_frame is None or sample_rate is None:
                     continue
+
+                # Determine channels and channel layout from channel mode
                 channels = 1 if channels_str == "Mono" else 2
+                if channels_str == "Stereo" or channels_str == "Joint Stereo":
+                    channel_layout = "2.0"
+                elif channels_str == "Dual Channel":
+                    channel_layout = "1+1"
+                elif channels_str == "Mono":
+                    channel_layout = "1.0"
+                else:
+                    channel_layout = None
+
                 sps_key = f"{mpeg_version}_{layer.replace(' ', '-')}"
                 samples_per_frame = SAMPLES_PER_FRAME.get(sps_key)
                 if not samples_per_frame:
                     continue
                 if layer_bits == 0b11:
                     frame_length_bytes = (
-                            int(
-                                ((12 * bitrate_kbps_from_frame * 1000.0) / sample_rate)
-                                + padding_bit
-                            )
-                            * 4
+                        int(
+                            ((12 * bitrate_kbps_from_frame * 1000.0) / sample_rate)
+                            + padding_bit
+                        )
+                        * 4
                     )
                 else:
                     frame_length_bytes = int(
@@ -366,13 +378,14 @@ def get_mpeg_audio_properties(
                     next_header_peek = f.read(4)
                     f.seek(current_read_pos + i)
                     if (
-                            len(next_header_peek) == 4
-                            and next_header_peek[0] == 0xFF
-                            and (next_header_peek[1] & 0xE0) == 0xE0
+                        len(next_header_peek) == 4
+                        and next_header_peek[0] == 0xFF
+                        and (next_header_peek[1] & 0xE0) == 0xE0
                     ):
                         first_frame_bitrate = bitrate_kbps_from_frame
                         first_frame_sample_rate = sample_rate
                         first_frame_channels = channels
+                        first_frame_channel_layout = channel_layout  # Store layout
 
                         if layer == "Layer III":
                             first_frame_codec = "mp3"
@@ -397,9 +410,9 @@ def get_mpeg_audio_properties(
         return None
     total_samples = 0
     if (
-            first_frame_sample_rate > 0
-            and first_frame_bitrate > 0
-            and total_file_size > initial_audio_data_pos
+        first_frame_sample_rate > 0
+        and first_frame_bitrate > 0
+        and total_file_size > initial_audio_data_pos
     ):
         estimated_audio_bytes = total_file_size - initial_audio_data_pos
         if frame_length_bytes > 0:
@@ -409,6 +422,7 @@ def get_mpeg_audio_properties(
         "codec": first_frame_codec,
         "codec_tag_string": first_frame_codec_tag,
         "channels": first_frame_channels,
+        "channel_layout": first_frame_channel_layout,  # Add to return dict
         "sample_rate": first_frame_sample_rate,
         "bits_per_sample": 16,
         "duration_seconds": None,
@@ -429,10 +443,10 @@ def get_apic_frame_data(f: BinaryIO) -> Optional[bytes]:
 
     version_major = header[3]
     size = (
-            ((header[6] & 0x7F) << 21)
-            | ((header[7] & 0x7F) << 14)
-            | ((header[8] & 0x7F) << 7)
-            | (header[9] & 0x7F)
+        ((header[6] & 0x7F) << 21)
+        | ((header[7] & 0x7F) << 14)
+        | ((header[8] & 0x7F) << 7)
+        | (header[9] & 0x7F)
     )
     id3_tag_end = 10 + size
 
@@ -454,10 +468,10 @@ def get_apic_frame_data(f: BinaryIO) -> Optional[bytes]:
 
         if version_major == 4:
             frame_size = (
-                    ((frame_header[4] & 0x7F) << 21)
-                    | ((frame_header[5] & 0x7F) << 14)
-                    | ((frame_header[6] & 0x7F) << 7)
-                    | (frame_header[7] & 0x7F)
+                ((frame_header[4] & 0x7F) << 21)
+                | ((frame_header[5] & 0x7F) << 14)
+                | ((frame_header[6] & 0x7F) << 7)
+                | (frame_header[7] & 0x7F)
             )
         else:
             frame_size = struct.unpack(">I", frame_header[4:8])[0]

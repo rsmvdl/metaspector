@@ -80,9 +80,7 @@ def export(args):
 
         # --- Logic for exporting metadata ---
         elif args.export_type == "meta":
-            metadata = (
-                inspector.inspect()
-            )
+            metadata = inspector.inspect()
             default_filename = f"{base_name}.json"
 
             if os.path.isdir(destination_path):

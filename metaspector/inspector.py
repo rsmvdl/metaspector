@@ -80,12 +80,8 @@ class MediaInspector:
                     result["metadata"].update(
                         media_content_parse_result.get("metadata", {})
                     )
-                    result["video"].extend(
-                        media_content_parse_result.get("video", [])
-                    )
-                    result["audio"].extend(
-                        media_content_parse_result.get("audio", [])
-                    )
+                    result["video"].extend(media_content_parse_result.get("video", []))
+                    result["audio"].extend(media_content_parse_result.get("audio", []))
                     result["subtitle"].extend(
                         media_content_parse_result.get("subtitle", [])
                     )

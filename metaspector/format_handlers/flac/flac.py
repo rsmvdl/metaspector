@@ -107,12 +107,16 @@ class FlacParser(BaseMediaParser):
                     else 0
                 )
                 if audio_data_size > 0:
-                    bitrate = (audio_data_size * 8) / audio_tracks[0]["duration_seconds"]
+                    bitrate = (audio_data_size * 8) / audio_tracks[0][
+                        "duration_seconds"
+                    ]
                     audio_tracks[0]["bitrate_kbps"] = int(bitrate / 1000)
 
         return {
             "metadata": process_metadata_for_output(metadata),
-            "audio": [order_audio_track(track, i) for i, track in enumerate(audio_tracks)],
+            "audio": [
+                order_audio_track(track, i) for i, track in enumerate(audio_tracks)
+            ],
             "video": [],
             "subtitle": [],
         }

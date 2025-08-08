@@ -6,7 +6,6 @@ from typing import Dict, Any
 
 def order_audio_track(track: Dict[str, Any], index: int) -> Dict[str, Any]:
     """Reorders audio track fields for consistent output and adds index."""
-    # Add index to the dictionary before ordering
     track["index"] = index
     track["handler_name"] = "Audio"  # Hardcoded for consistency
     track["language"] = "und"  # Hardcoded for consistency
@@ -18,6 +17,7 @@ def order_audio_track(track: Dict[str, Any], index: int) -> Dict[str, Any]:
         "codec",
         "codec_tag_string",
         "channels",
+        "channel_layout",
         "sample_rate",
         "bits_per_sample",
         "bitrate_kbps",
