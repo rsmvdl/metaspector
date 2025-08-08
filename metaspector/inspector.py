@@ -3,7 +3,8 @@
 
 import os
 import logging
-from typing import Dict, Optional, Any, List
+import struct
+from typing import Dict, Optional, Any, BinaryIO
 
 from .format_handlers.mp4.mp4 import Mp4Parser
 from .format_handlers.flac.flac import FlacParser
@@ -18,86 +19,59 @@ class MediaInspector:
             raise FileNotFoundError(f"File not found at '{filepath}'")
         self.filepath = filepath
 
+    def _get_parser_instance(self, f: BinaryIO):
+        """Internal helper to detect file type and return the correct parser instance."""
+        initial_check_bytes = f.read(1024)
+        f.seek(0)
+
+        if initial_check_bytes.startswith(b"ID3"):
+            return Mp3Parser()
+        elif initial_check_bytes[0] == 0xFF and (initial_check_bytes[1] & 0xE0) == 0xE0:
+            return Mp3Parser()
+        elif initial_check_bytes[0:4] == b"fLaC":
+            return FlacParser()
+
+        # Robust MP4 check by searching for key atoms
+        f.seek(0)
+        pos = 0
+        while pos < 1024:  # Search within the first 1KB
+            f.seek(pos)
+            size_bytes = f.read(4)
+            if len(size_bytes) < 4:
+                break
+            size = struct.unpack(">I", size_bytes)[0]
+
+            atom_type = f.read(4)
+            if atom_type in (b"ftyp", b"moov", b"mdat"):
+                f.seek(0)
+                return Mp4Parser()
+
+            if size == 0:
+                break  # Cannot determine next position
+            pos += size
+
+        f.seek(0)
+        return None
+
     def inspect(self, section: Optional[str] = None) -> Dict[str, Any]:
         """
         Inspects the media file and returns its metadata, audio, video, and subtitle tracks.
-        Optionally, returns only a specific section if 'section' is provided.
-
-        Args:
-            section (Optional[str]): The specific section to return ('metadata', 'audio', 'video', 'subtitle').
-                                     If None, returns the entire parsed dictionary.
-
-        Returns:
-            Dict[str, Any]: A dictionary containing the parsed media information,
-                            or a specific section of it.
-
-        Raises:
-            ValueError: If an unsupported file format is detected or an invalid section is requested.
-            IOError: If an error occurs during file parsing.
         """
-        result: Dict[str, Any] = {
-            "metadata": {},
-            "video": [],
-            "audio": [],
-            "subtitle": [],
-        }
-
         try:
             with open(self.filepath, "rb") as f:
-                initial_check_bytes = f.read(1024)
-                f.seek(0)
+                parser_instance = self._get_parser_instance(f)
 
-                if initial_check_bytes.startswith(b"ID3"):
-                    logger.debug("Detected ID3 prefix. Assigning Mp3Parser.")
-                    parser_instance = Mp3Parser()
-                elif (
-                    initial_check_bytes[0] == 0xFF
-                    and (initial_check_bytes[1] & 0xE0) == 0xE0
-                ):
-                    logger.debug(
-                        "Detected MPEG sync word (no ID3 prefix). Assigning Mp3Parser."
-                    )
-                    parser_instance = Mp3Parser()
-                elif len(initial_check_bytes) >= 8 and (
-                    initial_check_bytes[4:8] == b"ftyp"
-                    or initial_check_bytes[4:8] == b"moov"
-                ):
-                    logger.debug("Detected MP4 signature. Assigning Mp4Parser.")
-                    parser_instance = Mp4Parser()
-                elif initial_check_bytes[0:4] == b"fLaC":
-                    logger.debug("Detected FLAC signature. Assigning FlacParser.")
-                    parser_instance = FlacParser()
-                else:
-                    # No known format detected by signature.
-                    logger.debug("No known media format signature detected.")
-                    parser_instance = None
-
-                # --- Execute the chosen parser and merge results ---
                 if parser_instance:
                     logger.info(f"Using parser: {type(parser_instance).__name__}")
-                    media_content_parse_result = parser_instance.parse(f)
-
-                    result["metadata"].update(
-                        media_content_parse_result.get("metadata", {})
-                    )
-                    result["video"].extend(media_content_parse_result.get("video", []))
-                    result["audio"].extend(media_content_parse_result.get("audio", []))
-                    result["subtitle"].extend(
-                        media_content_parse_result.get("subtitle", [])
-                    )
+                    result = parser_instance.parse(f)
                 else:
-                    # If no specific parser was identified for the file.
-                    raise ValueError(
-                        f"Unsupported file format for '{self.filepath}'. "
-                        f"No known media format detected. Initial bytes read: {initial_check_bytes[:20].hex()}..."
-                    )
+                    raise ValueError(f"Unsupported file format for '{self.filepath}'.")
 
         except FileNotFoundError:
             raise
         except Exception as e:
             raise IOError(f"Error parsing media file '{self.filepath}': {e}") from e
 
-        # --- Conditional output based on 'section' argument ---
         if section:
             if section in result:
                 return {section: result[section]}
@@ -113,30 +87,10 @@ class MediaInspector:
         """
         try:
             with open(self.filepath, "rb") as f:
-                initial_check_bytes = f.read(1024)
-                f.seek(0)
-
-                if initial_check_bytes.startswith(b"ID3"):
-                    parser_instance = Mp3Parser()
-                elif (
-                    initial_check_bytes[0] == 0xFF
-                    and (initial_check_bytes[1] & 0xE0) == 0xE0
-                ):
-                    parser_instance = Mp3Parser()
-                elif len(initial_check_bytes) >= 8 and (
-                    initial_check_bytes[4:8] == b"ftyp"
-                    or initial_check_bytes[4:8] == b"moov"
-                ):
-                    parser_instance = Mp4Parser()
-                elif initial_check_bytes[:4] == b"fLaC":
-                    parser_instance = FlacParser()
-                else:
-                    return None
-
-                if hasattr(parser_instance, "get_cover_art"):
+                parser_instance = self._get_parser_instance(f)
+                if parser_instance and hasattr(parser_instance, "get_cover_art"):
                     return parser_instance.get_cover_art(f)
-                else:
-                    return None
+                return None
         except Exception as e:
             logger.error(f"Error getting cover art: {e}")
             return None
