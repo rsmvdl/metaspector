@@ -1082,9 +1082,7 @@ class MP4BoxParser:
                                             and not item["name"].endswith("...")
                                         ]
                                         if simplified_list:
-                                            parsed_data[plist_key] = dict(
-                                                simplified_list
-                                            )
+                                            parsed_data[plist_key] = simplified_list
                                     else:
                                         parsed_data[plist_key] = plist_value
                             except Exception as e:
