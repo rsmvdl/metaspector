@@ -10,6 +10,9 @@ from .mp4_utils import (
     _read_uint8,
     _read_uint32,
     _read_uint64,
+    COLOR_PRIMARIES_MAP,
+    TRANSFER_CHARACTERISTICS_MAP,
+    MATRIX_COEFFICIENTS_MAP,
 )
 
 logger = logging.getLogger(__name__)
@@ -51,6 +54,13 @@ class BitReader:
             raise IndexError("Reading past end of data while parsing Exp-Golomb")
 
         return (1 << leading_zeros) - 1 + self.read_bits(leading_zeros)
+
+    def read_se(self) -> int:
+        value = self.read_ue()
+        if value & 1:
+            return (value + 1) // 2
+        else:
+            return -1 * (value // 2)
 
     def byte_aligned(self) -> bool:
         return self.bit_pos == 0
@@ -406,16 +416,14 @@ class BitstreamParser:
                 BitstreamParser._parse_sps_payload(nal_payload, bitstream_details)
 
                 if isinstance(bitstream_details.get("color_primaries"), int):
-                    bitstream_details["color_primaries"] = (
-                        BitstreamParser.COLOR_PRIMARIES_MAP.get(
-                            bitstream_details["color_primaries"],
-                            f"Unknown ({bitstream_details['color_primaries']})",
-                        )
+                    bitstream_details["color_primaries"] = COLOR_PRIMARIES_MAP.get(
+                        bitstream_details["color_primaries"],
+                        f"Unknown ({bitstream_details['color_primaries']})",
                     )
 
                 if isinstance(bitstream_details.get("transfer_characteristics"), int):
                     bitstream_details["transfer_characteristics"] = (
-                        BitstreamParser.TRANSFER_CHARACTERISTICS_MAP.get(
+                        TRANSFER_CHARACTERISTICS_MAP.get(
                             bitstream_details["transfer_characteristics"],
                             f"Unknown ({bitstream_details['transfer_characteristics']})",
                         )
@@ -423,7 +431,7 @@ class BitstreamParser:
 
                 if isinstance(bitstream_details.get("matrix_coefficients"), int):
                     bitstream_details["matrix_coefficients"] = (
-                        BitstreamParser.MATRIX_COEFFICIENTS_MAP.get(
+                        MATRIX_COEFFICIENTS_MAP.get(
                             bitstream_details["matrix_coefficients"],
                             f"Unknown ({bitstream_details['matrix_coefficients']})",
                         )

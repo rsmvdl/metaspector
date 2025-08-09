@@ -17,6 +17,7 @@ TRANSFER_CHARACTERISTICS_MAP = {
     18: "arib-std-b67",
     14: "smpte428",
 }
+
 COLOR_PRIMARIES_MAP = {
     1: "bt709",
     5: "smpte170m",
@@ -35,6 +36,21 @@ MATRIX_COEFFICIENTS_MAP = {
     10: "bt2020c",
     14: "bt2020nc",
     15: "bt2020nc",
+}
+
+_CHROMA_LOCATION_MAP = {
+    0: "left",
+    1: "center",
+    2: "topleft",
+    3: "top",
+    4: "bottomleft",
+    5: "bottom",
+}
+
+_AV1_CHROMA_LOCATION_MAP = {
+    0: "unspecified",
+    1: "topleft",
+    2: "left",
 }
 
 

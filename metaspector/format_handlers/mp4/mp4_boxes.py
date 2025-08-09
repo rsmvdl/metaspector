@@ -18,6 +18,8 @@ from .mp4_utils import (
     TRANSFER_CHARACTERISTICS_MAP,
     COLOR_PRIMARIES_MAP,
     MATRIX_COEFFICIENTS_MAP,
+    _CHROMA_LOCATION_MAP,
+    _AV1_CHROMA_LOCATION_MAP,
 )
 from metaspector.matrices.rating_matrix import get_age_classification
 
@@ -46,7 +48,58 @@ class MP4BoxParser:
         "mp4v": "mpeg4",
     }
 
-    # A mapping of audio codec FourCC tags to common codec names
+    _h264_profile_map = {
+        66: "Baseline",
+        77: "Main",
+        88: "Extended",
+        100: "High",
+        103: "Stereo High",
+        110: "High 10",
+        122: "High 4:2:2",
+        128: "Stereo High",
+        134: "MFC High",
+        135: "MFC Depth High",
+        138: "Multi-view Depth High",
+        139: "Enhanced Multi-view Depth High",
+        144: "High 4:4:4",
+        155: "High 4:4:4 Predictive",
+        244: "High 4:4:4 Predictive",
+        44: "CAVLC 4:4:4 Intra",
+        83: "Scalable Baseline",
+        86: "Scalable High",
+        118: "Multi-view High",
+    }
+
+    _hevc_profile_map = {
+        1: "Main",
+        2: "Main 10",
+        3: "Main Still Picture",
+        4: "Range Extension",
+        5: "High Throughput",
+        6: "High Throughput 10",
+        9: "Main 4:4:4",
+        10: "Main 4:4:4 10",
+        11: "Main 4:4:4 12",
+        12: "Main 4:4:4 16",
+        17: "Main 12",
+        18: "Main 4:2:2",
+        19: "Main 4:2:2 10",
+        20: "Main 4:2:2 12",
+        21: "Main 4:2:2 16",
+        25: "Main 4:4:4 10",
+        26: "Main 4:4:4 12",
+        33: "Main 10",
+    }
+
+    _av1_profile_map = {0: "Main", 1: "High", 2: "Professional"}
+
+    _vp9_profile_map = {
+        0: "Profile 0",
+        1: "Profile 1",
+        2: "Profile 2",
+        3: "Profile 3",
+    }
+
     _audio_codec_map = {
         "ec-3": "eac3",
         "ac-3": "ac3",
@@ -141,17 +194,21 @@ class MP4BoxParser:
         return bytes(res)
 
     @staticmethod
-    def _parse_avcC_for_pix_fmt(f: BinaryIO, box_end: int) -> Optional[str]:
+    def _parse_avcC(f: BinaryIO, box_end: int) -> Optional[Dict[str, Any]]:
         """
-        Parses an 'avcC' box to determine the pixel format from the first SPS.
+        Parses an 'avcC' box to determine profile, level, pixel format, and chroma location from the first SPS.
         """
+        details: Dict[str, Any] = {
+            "pixel_format": None,
+            "profile": None,
+            "profile_level": None,
+            "chroma_location": None,
+        }
         avcc_start = f.tell()
         try:
-            f.seek(
-                avcc_start + 5
-            )  # Skip version, profile, compat, level, lengthSizeMinusOne
+            f.seek(avcc_start + 5)
             num_sps = _read_uint8(f) & 0x1F
-            if num_sps is None or num_sps == 0:
+            if num_sps == 0:
                 return None
 
             sps_len = _read_uint16(f)
@@ -162,9 +219,21 @@ class MP4BoxParser:
             unescaped_sps = MP4BoxParser._unescape_nal_payload(sps_payload)
             reader = BitReader(unescaped_sps)
 
+            reader.read_bits(8)  # Skip the 1-byte NAL Unit Header
+
             profile_idc = reader.read_bits(8)
-            reader.read_bits(8)  # constraint_set_flags
-            reader.read_bits(8)  # level_idc
+            details["profile"] = MP4BoxParser._h264_profile_map.get(
+                profile_idc, str(profile_idc)
+            )
+
+            reader.read_bits(8)  # Skip constraint_set flags / profile_compatibility
+
+            level_idc = reader.read_bits(8)
+            level = level_idc / 10.0 if level_idc > 0 else None
+
+            if details["profile"] and level:
+                details["profile_level"] = f"{level:.1f}"
+
             reader.read_ue()  # seq_parameter_set_id
 
             chroma_format_idc, bit_depth = 1, 8
@@ -187,24 +256,93 @@ class MP4BoxParser:
                 if chroma_format_idc == 3:
                     reader.read_bit()
                 bit_depth = reader.read_ue() + 8
+                reader.read_ue()
+                reader.read_bit()
+                if reader.read_bit():  # seq_scaling_matrix_present_flag
+                    for i in range(8 if chroma_format_idc != 3 else 12):
+                        if reader.read_bit():
+                            scans = 16 if i < 6 else 64
+                            last_scale, next_scale = 8, 8
+                            for _ in range(scans):
+                                if next_scale != 0:
+                                    delta_scale = reader.read_se()
+                                    next_scale = (last_scale + delta_scale + 256) % 256
+                                last_scale = (
+                                    next_scale if next_scale != 0 else last_scale
+                                )
+
+            reader.read_ue()
+            pic_order_cnt_type = reader.read_ue()
+            if pic_order_cnt_type == 0:
+                reader.read_ue()
+            elif pic_order_cnt_type == 1:
+                reader.read_bit()
+                reader.read_se()
+                reader.read_se()
+                for _ in range(reader.read_ue()):
+                    reader.read_se()
+
+            reader.read_ue()
+            reader.read_bit()
+            reader.read_ue()
+            reader.read_ue()
+            if not reader.read_bit():
+                reader.read_bit()
+            reader.read_bit()
+            if reader.read_bit():
+                reader.read_ue()
+                reader.read_ue()
+                reader.read_ue()
+                reader.read_ue()
+
+            if reader.read_bit():  # vui_parameters_present_flag
+                if reader.read_bit():
+                    if reader.read_bits(8) == 255:
+                        reader.read_bits(32)
+                if reader.read_bit():
+                    reader.read_bit()
+                if reader.read_bit():
+                    reader.read_bits(3)
+                    reader.read_bit()
+                    if reader.read_bit():
+                        reader.read_bits(24)
+                if reader.read_bit():
+                    top = reader.read_ue()
+                    bottom = reader.read_ue()
+                    details["chroma_location"] = (
+                        _CHROMA_LOCATION_MAP.get(top)
+                        if top == bottom
+                        else f"{_CHROMA_LOCATION_MAP.get(top)}/{_CHROMA_LOCATION_MAP.get(bottom)}"
+                    )
+
+            if details["chroma_location"] is None and chroma_format_idc == 1:
+                details["chroma_location"] = "left"
 
             pix_fmt_map = {0: "gray", 1: "yuv420p", 2: "yuv422p", 3: "yuv444p"}
             pix_fmt_base = pix_fmt_map.get(chroma_format_idc)
-            if pix_fmt_base is None:
-                return None
+            if pix_fmt_base:
+                details["pixel_format"] = (
+                    f"{pix_fmt_base}{bit_depth}le" if bit_depth > 8 else pix_fmt_base
+                )
+            return details
 
-            return f"{pix_fmt_base}{bit_depth}le" if bit_depth > 8 else pix_fmt_base
         except (IndexError, struct.error) as e:
-            logger.debug(f"Error parsing avcC for pixel format: {e}")
+            logger.debug(f"Error parsing avcC box: {e}")
             return None
         finally:
             f.seek(box_end)
 
     @staticmethod
-    def _parse_hvcC_for_pix_fmt(f: BinaryIO, box_end: int) -> Optional[str]:
+    def _parse_hvcC(f: BinaryIO, box_end: int) -> Optional[Dict[str, Any]]:
         """
-        Parses an 'hvcC' box to determine the pixel format from the first SPS.
+        Parses an 'hvcC' box to determine profile, profile_level, pixel format, and chroma location from the first SPS.
         """
+        details: Dict[str, Any] = {
+            "pixel_format": None,
+            "profile": None,
+            "profile_level": None,
+            "chroma_location": None,
+        }
         hvcC_start = f.tell()
         try:
             f.seek(hvcC_start + 22)
@@ -223,7 +361,7 @@ class MP4BoxParser:
                     nal_unit_len = _read_uint16(f)
                     if nal_unit_len is None:
                         continue
-                    if nal_unit_type == 33 and sps_payload is None:
+                    if nal_unit_type == 33 and sps_payload is None:  # NAL_UNIT_SPS
                         sps_payload = f.read(nal_unit_len)
                     else:
                         f.seek(nal_unit_len, 1)
@@ -234,24 +372,39 @@ class MP4BoxParser:
             unescaped_sps = MP4BoxParser._unescape_nal_payload(sps_payload)
             reader = BitReader(unescaped_sps)
 
-            reader.read_bits(16)
+            reader.read_bits(16)  # Skip NAL Unit Header
             reader.read_bits(4)
             sps_max_sub_layers_minus1 = reader.read_bits(3)
             reader.read_bit()
 
-            reader.read_bits(96)
-            sub_layer_profile_present_flag, sub_layer_level_present_flag = [], []
+            reader.read_bits(2)
+            reader.read_bit()
+            profile_idc = reader.read_bits(5)
+            details["profile"] = MP4BoxParser._hevc_profile_map.get(
+                profile_idc, str(profile_idc)
+            )
+            reader.read_bits(32)
+            reader.read_bits(48)
+
+            level_idc = reader.read_bits(8)
+            level = level_idc / 30.0 if level_idc > 0 else None
+
+            if details["profile"] and level is not None:
+                details["profile_level"] = f"{level:.1f}"
+
             if sps_max_sub_layers_minus1 > 0:
+                sub_layer_profile_present_flag = []
+                sub_layer_level_present_flag = []
                 for _ in range(sps_max_sub_layers_minus1):
                     sub_layer_profile_present_flag.append(reader.read_bit())
                     sub_layer_level_present_flag.append(reader.read_bit())
                 for _ in range(sps_max_sub_layers_minus1, 8):
                     reader.read_bits(2)
-            for i in range(sps_max_sub_layers_minus1):
-                if sub_layer_profile_present_flag[i]:
-                    reader.read_bits(88)
-                if sub_layer_level_present_flag[i]:
-                    reader.read_bits(8)
+                for i in range(sps_max_sub_layers_minus1):
+                    if sub_layer_profile_present_flag[i]:
+                        reader.read_bits(88)
+                    if sub_layer_level_present_flag[i]:
+                        reader.read_bits(8)
 
             reader.read_ue()
             chroma_format_idc = reader.read_ue()
@@ -267,46 +420,155 @@ class MP4BoxParser:
                 reader.read_ue()
 
             bit_depth = reader.read_ue() + 8
+            reader.read_ue()
+            reader.read_ue()
+
+            sps_sub_layer_ordering_info_present_flag = reader.read_bit()
+            start_idx = (
+                0
+                if sps_sub_layer_ordering_info_present_flag
+                else sps_max_sub_layers_minus1
+            )
+            for _ in range(start_idx, sps_max_sub_layers_minus1 + 1):
+                reader.read_ue()
+                reader.read_ue()
+                reader.read_ue()
+
+            reader.read_ue()
+            reader.read_ue()
+            reader.read_ue()
+            reader.read_ue()
+            reader.read_ue()
+            reader.read_ue()
+
+            if reader.read_bit():
+                if reader.read_bit():
+                    for size_id in range(4):
+                        for matrix_id in range(6 if size_id < 3 else 2):
+                            if not reader.read_bit():
+                                reader.read_ue()
+                            else:
+                                num_coeffs = min(64, (1 << (4 + (size_id << 1))))
+                                if size_id > 1:
+                                    reader.read_se()
+                                for _ in range(num_coeffs):
+                                    reader.read_se()
+            reader.read_bit()
+            reader.read_bit()
+
+            if reader.read_bit():
+                reader.read_bits(8)
+                reader.read_ue()
+                reader.read_ue()
+                reader.read_bit()
+
+            num_short_term_ref_pic_sets = reader.read_ue()
+            for i in range(num_short_term_ref_pic_sets):
+                if i != 0 and reader.read_bit():
+                    logger.debug(
+                        "Unsupported SPS: inter_ref_pic_set_prediction is not supported."
+                    )
+                    return details
+                num_negative_pics = reader.read_ue()
+                num_positive_pics = reader.read_ue()
+                for _ in range(num_negative_pics):
+                    reader.read_ue()
+                    reader.read_bit()
+                for _ in range(num_positive_pics):
+                    reader.read_ue()
+                    reader.read_bit()
+
+            if reader.read_bit():
+                for _ in range(reader.read_ue()):
+                    reader.read_ue()
+                    reader.read_bit()
+
+            reader.read_bit()
+            reader.read_bit()
+
+            if reader.read_bit():
+                if reader.read_bit():
+                    if reader.read_bits(8) == 255:
+                        reader.read_bits(32)
+                if reader.read_bit():
+                    reader.read_bit()
+                if reader.read_bit():
+                    reader.read_bits(3)
+                    reader.read_bit()
+                    if reader.read_bit():
+                        reader.read_bits(24)
+                if reader.read_bit():
+                    top_val = reader.read_ue()
+                    bottom_val = reader.read_ue()
+                    top_str = _CHROMA_LOCATION_MAP.get(top_val, str(top_val))
+                    bottom_str = _CHROMA_LOCATION_MAP.get(bottom_val, str(bottom_val))
+                    details["chroma_location"] = (
+                        top_str if top_str == bottom_str else f"{top_str}/{bottom_str}"
+                    )
+
+            if details["chroma_location"] is None and chroma_format_idc == 1:
+                details["chroma_location"] = "left"
 
             pix_fmt_map = {0: "gray", 1: "yuv420p", 2: "yuv422p", 3: "yuv444p"}
             pix_fmt_base = pix_fmt_map.get(chroma_format_idc)
-            if pix_fmt_base is None:
-                return None
+            if pix_fmt_base:
+                details["pixel_format"] = (
+                    f"{pix_fmt_base}{bit_depth}le" if bit_depth > 8 else pix_fmt_base
+                )
+            return details
 
-            return f"{pix_fmt_base}{bit_depth}le" if bit_depth > 8 else pix_fmt_base
         except (IndexError, struct.error) as e:
-            logger.debug(f"Error parsing hvcC for pixel format: {e}")
+            logger.debug(f"Error parsing hvcC box: {e}")
             return None
         finally:
             f.seek(box_end)
 
     @staticmethod
-    def _parse_av1C_for_pix_fmt(f: BinaryIO, box_end: int) -> Optional[str]:
-        """Parses an 'av1C' box to determine the pixel format."""
+    def _parse_av1C(f: BinaryIO, box_end: int) -> Optional[Dict[str, Any]]:
+        """Parses an 'av1C' box to determine the profile, profile_level, pixel format, and chroma location."""
+        details: Dict[str, Any] = {
+            "pixel_format": None,
+            "profile": None,
+            "profile_level": None,
+            "chroma_location": None,
+        }
         av1c_start = f.tell()
         try:
-            # The needed flags are in the first 4 bytes of the AV1CC record
-            if box_end - av1c_start < 4:
+            av1c_data = f.read(box_end - av1c_start)
+            if len(av1c_data) < 4:
                 return None
 
-            f.read(2)  # Skip marker, version, seq_profile, seq_level_idx_0
-            config_byte = _read_uint8(f)
-            if config_byte is None:
-                return None
+            reader = BitReader(av1c_data)
+            reader.read_bits(1)  # marker (1)
+            reader.read_bits(7)  # version (7)
 
-            # Unpack the bit fields from the third byte
-            high_bitdepth = (config_byte >> 6) & 0x01
-            twelve_bit = (config_byte >> 5) & 0x01
-            mono_chrome = (config_byte >> 4) & 0x01
-            chroma_subsampling_x = (config_byte >> 3) & 0x01
-            chroma_subsampling_y = (config_byte >> 2) & 0x01
+            seq_profile = reader.read_bits(3)
+            seq_level_idx_0 = reader.read_bits(5)
+            seq_tier_0 = reader.read_bits(1)
 
-            # Determine bit depth
+            high_bitdepth = reader.read_bits(1)
+            twelve_bit = reader.read_bits(1)
+            mono_chrome = reader.read_bits(1)
+            chroma_subsampling_x = reader.read_bits(1)
+            chroma_subsampling_y = reader.read_bits(1)
+            chroma_sample_position = reader.read_bits(2)
+
+            details["profile"] = MP4BoxParser._av1_profile_map.get(
+                seq_profile, str(seq_profile)
+            )
+
+            major = (seq_level_idx_0 >> 2) + 2
+            minor = seq_level_idx_0 & 3
+            level = float(f"{major}.{minor}")
+
+            if details["profile"]:
+                tier_str = " (High)" if seq_tier_0 == 1 else ""
+                details["profile_level"] = f"{level:.1f}{tier_str}"
+
             bit_depth = 8
             if high_bitdepth:
                 bit_depth = 12 if twelve_bit else 10
 
-            # Determine chroma format
             if mono_chrome:
                 pix_fmt_base = "gray"
             else:
@@ -316,55 +578,80 @@ class MP4BoxParser:
                     pix_fmt_base = "yuv422p"
                 elif chroma_subsampling_x == 0 and chroma_subsampling_y == 0:
                     pix_fmt_base = "yuv444p"
-                else:  # Should not happen in valid streams
-                    return None
+                else:
+                    pix_fmt_base = None
 
-            if bit_depth > 8:
-                return f"{pix_fmt_base}{bit_depth}le"
-            else:
-                return pix_fmt_base
+            if pix_fmt_base:
+                details["pixel_format"] = (
+                    f"{pix_fmt_base}{bit_depth}le" if bit_depth > 8 else pix_fmt_base
+                )
 
-        except (IndexError, struct.error) as e:
-            logger.debug(f"Error parsing av1C for pixel format: {e}")
+            details["chroma_location"] = _AV1_CHROMA_LOCATION_MAP.get(
+                chroma_sample_position, "unspecified"
+            )
+
+            return details
+        except (IndexError, struct.error):
             return None
         finally:
             f.seek(box_end)
 
     @staticmethod
-    def _parse_vpc_config(f: BinaryIO, box_end: int) -> Dict[str, int]:
+    def _parse_vpc_config(f: BinaryIO, box_end: int) -> Dict[str, Any]:
         """
-        Parses a 'vpcC' box and returns a dictionary of its raw values.
-        It does not make a final determination of pixel format.
+        Parses a VP9 configuration box ('vpcC') to extract codec metadata.
+        This parser handles the mandatory profile and optional extended fields for
+        level, bit depth, chroma subsampling, and color information.
         """
-        config: Dict[str, int] = {}
+        config: Dict[str, Any] = {}
         vpcc_start = f.tell()
         try:
+            # A 'vpcC' box must contain at least the 1-byte profile.
             if box_end - vpcc_start < 1:
-                return config
+                logger.warning("Invalid 'vpcC' box size: too small.")
+                return {}
 
             profile = _read_uint8(f)
             if profile is None:
-                return config
-            config["profile"] = profile
+                return {}
+            config["profile"] = MP4BoxParser._vp9_profile_map.get(profile, str(profile))
 
-            # If box is long enough for explicit color fields, read them.
-            if box_end - f.tell() >= 7:
-                f.read(1)  # level
-                config["bit_depth"] = _read_uint8(f)
-                config["chroma_subsampling"] = _read_uint8(f)
-                f.read(1)  # videoFullRangeFlag
-                config["colour_primaries"] = _read_uint8(f)
+            # The presence of at least 5 more bytes indicates the extended configuration.
+            if box_end - f.tell() >= 5:
+                level = _read_uint8(f)
+                if level is not None:
+                    # Level is stored as an integer (e.g., 21 for level 2.1).
+                    config["profile_level"] = f"{level / 10.0:.1f}"
+
+                packed_byte = _read_uint8(f)
+                if packed_byte is not None:
+                    # Bits 4-7: bitDepth
+                    config["bit_depth"] = (packed_byte >> 4) & 0x0F
+                    # Bits 1-3: chromaSubsampling
+                    config["chroma_subsampling"] = (packed_byte >> 1) & 0x07
+
+                config["color_primaries"] = _read_uint8(f)
                 config["transfer_characteristics"] = _read_uint8(f)
                 config["matrix_coefficients"] = _read_uint8(f)
-            # Fallback for short boxes where color info is inferred
-            elif profile in (0, 1):
-                config["bit_depth"] = 8
-                config["chroma_subsampling"] = 0  # 4:2:0
+            else:
+                # Infer details from profile if extended fields are absent.
+                # Profile 2 is 10-bit; others are 8-bit.
+                config["bit_depth"] = 10 if profile == 2 else 8
+                config["chroma_subsampling"] = 0  # Assume 4:2:0
+
+            # Chroma location is typically 'left' (co-sited) for 4:2:0 video.
+            if config.get("chroma_subsampling") == 0:  # 0 indicates 4:2:0
+                config["chroma_location"] = "left"
+            else:
+                config["chroma_location"] = "unspecified"
 
             return config
-        except (IOError, struct.error):
-            return config
+        except (IOError, struct.error) as e:
+            # A warning is appropriate as malformed data can occur in practice.
+            logger.warning(f"Could not parse 'vpcC' box due to an error: {e}")
+            return {}
         finally:
+            # Ensure the stream position is advanced to the end of the box.
             f.seek(box_end)
 
     @staticmethod
@@ -795,7 +1082,9 @@ class MP4BoxParser:
                                             and not item["name"].endswith("...")
                                         ]
                                         if simplified_list:
-                                            parsed_data[plist_key] = simplified_list
+                                            parsed_data[plist_key] = dict(
+                                                simplified_list
+                                            )
                                     else:
                                         parsed_data[plist_key] = plist_value
                             except Exception as e:
@@ -1000,8 +1289,6 @@ class MP4BoxParser:
     def parse_stsd_subtitle(
         f: BinaryIO, stsd_end: int
     ) -> Tuple[Optional[str], Optional[str]]:
-        """Parses 'stsd' for subtitle track details, returning codec and a potential descriptive name."""
-        codec: Optional[str] = None
         name: Optional[str] = None
 
         # Skip version (1), flags (3), and number of entries (4).
@@ -1061,7 +1348,6 @@ class MP4BoxParser:
             "sample_rate": 0,
         }
         channel_layout = None
-        initial_pos = f.tell()
         f.seek(8, 1)
         if f.tell() >= stsd_end:
             return audio_details
@@ -1202,6 +1488,8 @@ class MP4BoxParser:
             "width": 0,
             "height": 0,
             "pixel_format": None,
+            "profile": None,
+            "chroma_location": None,
             "hdr_format": "SDR",
             "color_primaries": "Unknown",
             "transfer_characteristics": "Unknown",
@@ -1243,10 +1531,10 @@ class MP4BoxParser:
         vpc_data: Dict[str, int] = {}
 
         # A map of box types to their respective parser functions
-        pixel_format_parsers = {
-            b"avcC": MP4BoxParser._parse_avcC_for_pix_fmt,
-            b"hvcC": MP4BoxParser._parse_hvcC_for_pix_fmt,
-            b"av1C": MP4BoxParser._parse_av1C_for_pix_fmt,
+        codec_config_parsers = {
+            b"avcC": MP4BoxParser._parse_avcC,
+            b"hvcC": MP4BoxParser._parse_hvcC,
+            b"av1C": MP4BoxParser._parse_av1C,
         }
 
         while current_pos < entry_end:
@@ -1261,13 +1549,16 @@ class MP4BoxParser:
                 if (val := _read_uint16(f)) is not None:
                     video_details["dolby_vision_profile"] = (val >> 9) & 0x7F
                     video_details["dolby_vision_level"] = (val >> 3) & 0x3F
-            elif child_type in pixel_format_parsers:
-                if video_details["pixel_format"] is None:
-                    video_details["pixel_format"] = pixel_format_parsers[child_type](
-                        f, child_end
+            elif child_type in codec_config_parsers:
+                codec_details = codec_config_parsers[child_type](f, child_end)
+                if codec_details:
+                    video_details.update(
+                        {k: v for k, v in codec_details.items() if v is not None}
                     )
             elif child_type == b"vpcC":
                 vpc_data = MP4BoxParser._parse_vpc_config(f, child_end)
+                if vpc_data:
+                    video_details.update(vpc_data)
             elif child_type == b"colr":
                 container_colr_found = True
                 f.seek(child_start + 8)
@@ -1351,6 +1642,11 @@ class MP4BoxParser:
             video_details["color_transfer"] = video_details["transfer_characteristics"]
         if video_details.get("color_range") == "Unknown":
             video_details["color_range"] = "tv"
+
+        # If the codec is VP9, remove fields used for intermediate calculations.
+        if video_details.get("codec") == "vp9":
+            video_details.pop("bit_depth", None)
+            video_details.pop("chroma_subsampling", None)
 
         if not video_details.get("dolby_vision"):
             for key in [
