@@ -389,13 +389,13 @@ def get_mpeg_audio_properties(
 
                         if layer == "Layer III":
                             first_frame_codec = "mp3"
-                            first_frame_codec_tag = "MP3 (MPEG audio layer 3)"
+                            first_frame_codec_tag = "mp3"
                         elif layer == "Layer II":
                             first_frame_codec = "mp2"
-                            first_frame_codec_tag = "MPEG Audio Layer II"
+                            first_frame_codec_tag = "mp2"
                         else:
                             first_frame_codec = "mp1"
-                            first_frame_codec_tag = "MPEG Audio Layer I"
+                            first_frame_codec_tag = "mp1"
 
                         first_frame_samples_per_frame = samples_per_frame
                         initial_audio_data_pos = current_read_pos + i

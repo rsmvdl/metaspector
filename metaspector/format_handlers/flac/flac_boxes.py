@@ -37,7 +37,7 @@ def parse_streaminfo_block(f: BinaryIO, audio_tracks: List[Dict]) -> None:
     audio_tracks.append(
         {
             "codec": "flac",
-            "codec_tag_string": "FLAC (Free Lossless Audio Codec)",
+            "codec_tag_string": "flac",
             "channels": num_channels,
             "channel_layout": channel_layout,
             "sample_rate": sample_rate,

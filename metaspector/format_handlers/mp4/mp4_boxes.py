@@ -909,7 +909,7 @@ class MP4BoxParser:
 
     @staticmethod
     def parse_ilst(
-        f: BinaryIO, ilst_end: int
+            f: BinaryIO, ilst_end: int
     ) -> Dict[str, Union[str, int, Dict[str, Any], None]]:
         """
         Parses the 'ilst' (item list) atom, which contains individual metadata items.
@@ -1061,7 +1061,7 @@ class MP4BoxParser:
 
                     if parsed_value is not None:
                         if isinstance(
-                            parsed_value, str
+                                parsed_value, str
                         ) and parsed_value.strip().startswith("<?xml"):
                             try:
                                 plist_data = plistlib.loads(
@@ -1069,17 +1069,17 @@ class MP4BoxParser:
                                 )
                                 for plist_key, plist_value in plist_data.items():
                                     if plist_key in (
-                                        "cast",
-                                        "directors",
-                                        "producers",
-                                        "screenwriters",
+                                            "cast",
+                                            "directors",
+                                            "producers",
+                                            "screenwriters",
                                     ) and isinstance(plist_value, list):
                                         simplified_list = [
                                             item.get("name")
                                             for item in plist_value
                                             if isinstance(item, dict)
-                                            and item.get("name")
-                                            and not item["name"].endswith("...")
+                                               and item.get("name")
+                                               and not item["name"].endswith("...")
                                         ]
                                         if simplified_list:
                                             parsed_data[plist_key] = simplified_list
@@ -1091,9 +1091,9 @@ class MP4BoxParser:
                                 )
                                 parsed_data[key_name] = parsed_value
                         elif (
-                            key_name in ("track_number", "disc_number")
-                            and isinstance(parsed_value, str)
-                            and "/" in parsed_value
+                                key_name in ("track_number", "disc_number")
+                                and isinstance(parsed_value, str)
+                                and "/" in parsed_value
                         ):
                             try:
                                 num, total = map(int, parsed_value.split("/", 1))
@@ -1109,8 +1109,9 @@ class MP4BoxParser:
                             parsed_data["hd_video_definition"] = hd_map.get(
                                 parsed_value, "SD"
                             )
+                            parsed_data["hd_video_definition_level"] = parsed_value
                         elif key_name == "content_rating" and isinstance(
-                            parsed_value, str
+                                parsed_value, str
                         ):
                             parts = parsed_value.split("|")
                             if len(parts) >= 3:
@@ -1135,12 +1136,17 @@ class MP4BoxParser:
                                         parsed_data["hd_video_definition"] = flag_map[
                                             rating_unit
                                         ]
+                                        # Map rating_unit to hdvd-style levels for consistency
+                                        level_map = {400: 2, 300: 1, 200: 0}
+                                        parsed_data["hd_video_definition_level"] = (
+                                            level_map.get(rating_unit)
+                                        )
                                 except (ValueError, IndexError):
                                     parsed_data["rating_unit"] = None
                             else:
                                 parsed_data[key_name] = parsed_value
                         elif key_name == "itunesadvisory" and isinstance(
-                            parsed_value, int
+                                parsed_value, int
                         ):
                             if parsed_value in (0, 2):
                                 parsed_data[key_name] = "0"
@@ -1149,9 +1155,9 @@ class MP4BoxParser:
                             else:
                                 parsed_data[key_name] = str(parsed_value)
                         elif key_name in (
-                            "compilation",
-                            "gapless_playback",
-                            "podcast",
+                                "compilation",
+                                "gapless_playback",
+                                "podcast",
                         ) and isinstance(parsed_value, int):
                             parsed_data[key_name] = bool(parsed_value)
                         else:
@@ -1213,6 +1219,7 @@ class MP4BoxParser:
             "tv_network",
             "hd_video",
             "hd_video_definition",
+            "hd_video_definition_level",
             "studio",
             "content_id",
             "composer",
@@ -1233,6 +1240,7 @@ class MP4BoxParser:
         if "media_type" in metadata and metadata["media_type"] == 1:
             metadata.pop("hd_video", None)
             metadata.pop("hd_video_definition", None)
+            metadata.pop("hd_video_definition_level", None)
             if "itunesadvisory" not in metadata:
                 metadata["itunesadvisory"] = 0
             metadata.pop("content_rating", None)
