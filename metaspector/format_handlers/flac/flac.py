@@ -110,7 +110,9 @@ class FlacParser(BaseMediaParser):
                     bitrate = (audio_data_size * 8) / audio_tracks[0][
                         "duration_seconds"
                     ]
-                    audio_tracks[0]["bitrate_kbps"] = int(bitrate / 1000)
+                    bitrate_kbps = int(bitrate / 1000)
+                    audio_tracks[0]["bitrate_kbps"] = bitrate_kbps
+                    metadata["bitrate_kbps"] = bitrate_kbps
 
         return {
             "metadata": process_metadata_for_output(metadata),

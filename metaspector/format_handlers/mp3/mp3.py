@@ -117,6 +117,13 @@ class Mp3Parser(BaseMediaParser):
             ordered_track = self._order_audio_track(track)
             final_audio_tracks.append(ordered_track)
 
+        total_bitrate_kbps = 0
+        for track in final_audio_tracks:
+            total_bitrate_kbps += track.get("bitrate_kbps") or 0
+
+        if total_bitrate_kbps > 0:
+            self.metadata["bitrate_kbps"] = total_bitrate_kbps
+
         final_metadata = self._process_metadata_for_output(self.metadata)
 
         return {
@@ -256,6 +263,7 @@ class Mp3Parser(BaseMediaParser):
             "disc_total",
             "genre",
             "duration_seconds",
+            "bitrate_kbps",
             "release_date",
             "publisher",
             "isrc",
@@ -294,7 +302,6 @@ class Mp3Parser(BaseMediaParser):
                 and value != ""
                 and key
                 not in [
-                    "bitrate_kbps",
                     "unique_file_identifier",
                     "tlen",
                     "tdat",

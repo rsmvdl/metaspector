@@ -42,6 +42,7 @@ def process_metadata_for_output(raw_meta: Dict[str, Any]) -> Dict[str, Any]:
         "disc_total",
         "genre",
         "duration_seconds",
+        "bitrate_kbps",
         "tempo",
         "release_date",
         "publisher",
@@ -62,6 +63,16 @@ def process_metadata_for_output(raw_meta: Dict[str, Any]) -> Dict[str, Any]:
         "comment",
         "encoder",
     ]
-    processed_meta = {k: raw_meta.pop(k) for k in output_order if k in raw_meta}
-    processed_meta.update(raw_meta)
+
+    # Create a new dictionary to hold the final ordered metadata
+    processed_meta = {}
+
+    temp_meta = raw_meta.copy()
+
+    for key in output_order:
+        if key in temp_meta:
+            processed_meta[key] = temp_meta.pop(key)
+
+    processed_meta.update(temp_meta)
+
     return processed_meta
