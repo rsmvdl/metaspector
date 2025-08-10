@@ -199,6 +199,7 @@ class Mp4Parser(BaseMediaParser):
             "internationalized_language",
             "internationalized_language_long",
             "codec",
+            "duration_seconds",
             "main_program_content",
             "original_content",
             "auxiliary_content",
@@ -626,25 +627,35 @@ class Mp4Parser(BaseMediaParser):
                 }
             )
 
+
         elif handler_type in (b"sbtl", b"subt", b"clcp"):
-            self.subtitle_tracks.append(
-                {
-                    "index": index or 0,
-                    "handler_name": final_track_name,
-                    "language": lang,
-                    "internationalized_language": i18n_lang,
-                    "internationalized_language_long": i18n_lang_long,
-                    "codec": subtitle_codec,
-                    "main_program_content": track_chars.main_program_content,
-                    "original_content": track_chars.original_content,
-                    "auxiliary_content": track_chars.auxiliary_content,
-                    "forced_only": track_chars.forced_only,
-                    "language_translation": track_chars.language_translation,
-                    "easy_to_read": track_chars.easy_to_read,
-                    "describes_music_and_sound": track_chars.describes_music_and_sound,
-                    "transcribes_spoken_dialog": track_chars.transcribes_spoken_dialog,
-                }
-            )
+
+            subtitle_track_info = {
+                "index": index or 0,
+                "handler_name": final_track_name,
+                "language": lang,
+                "internationalized_language": i18n_lang,
+                "internationalized_language_long": i18n_lang_long,
+                "codec": subtitle_codec,
+                "main_program_content": track_chars.main_program_content,
+                "original_content": track_chars.original_content,
+                "auxiliary_content": track_chars.auxiliary_content,
+                "forced_only": track_chars.forced_only,
+                "language_translation": track_chars.language_translation,
+                "easy_to_read": track_chars.easy_to_read,
+                "describes_music_and_sound": track_chars.describes_music_and_sound,
+                "transcribes_spoken_dialog": track_chars.transcribes_spoken_dialog,
+
+            }
+
+            if track_duration and track_timescale and track_timescale > 0:
+                subtitle_track_info["duration_seconds"] = (
+
+                        track_duration / track_timescale
+
+                )
+
+            self.subtitle_tracks.append(subtitle_track_info)
 
         elif handler_type == b"vide":
             if track_duration and track_timescale:
