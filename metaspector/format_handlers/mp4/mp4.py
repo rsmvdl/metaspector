@@ -1,4 +1,3 @@
-# metaspector/format_handlers/mp4/mp4.py
 # !/usr/bin/env python3
 
 import struct
@@ -232,6 +231,7 @@ class Mp4Parser(BaseMediaParser):
             "profile_level",
             "width",
             "height",
+            "frame_rate",
             "bitrate_kbps",
             "duration_seconds",
             "total_samples",
@@ -647,11 +647,15 @@ class Mp4Parser(BaseMediaParser):
             )
 
         elif handler_type == b"vide":
-            if track_duration and track_timescale and total_sample_size > 0:
+            if track_duration and track_timescale:
                 duration_in_seconds = track_duration / track_timescale
                 if duration_in_seconds > 0:
-                    bitrate_bps = (total_sample_size * 8) / duration_in_seconds
-                    video_info["bitrate_kbps"] = int(bitrate_bps / 1000)
+                    if total_sample_size > 0:
+                        bitrate_bps = (total_sample_size * 8) / duration_in_seconds
+                        video_info["bitrate_kbps"] = int(bitrate_bps / 1000)
+                    if total_samples and total_samples > 0:
+                        frame_rate = total_samples / duration_in_seconds
+                        video_info["frame_rate"] = round(frame_rate, 3)
 
             if total_samples is not None:
                 video_info["total_samples"] = total_samples
