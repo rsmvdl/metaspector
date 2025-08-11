@@ -1,4 +1,4 @@
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 import struct
 
@@ -86,14 +86,14 @@ class Mp4Parser(BaseMediaParser):
             ordered_track = self._order_video_track(track)
             final_video_tracks.append(ordered_track)
 
-        total_bitrate_kbps = 0
+        total_bitrate = 0
         for track in final_video_tracks:
-            total_bitrate_kbps += track.get("bitrate_kbps") or 0
+            total_bitrate += track.get("bitrate") or 0
         for track in final_audio_tracks:
-            total_bitrate_kbps += track.get("bitrate_kbps") or 0
+            total_bitrate += track.get("bitrate") or 0
 
-        if total_bitrate_kbps > 0:
-            self.metadata["bitrate_kbps"] = total_bitrate_kbps
+        if total_bitrate > 0:
+            self.metadata["bitrate"] = total_bitrate
 
         final_metadata = self._process_metadata_for_output(self.metadata)
 
@@ -168,7 +168,7 @@ class Mp4Parser(BaseMediaParser):
             "channel_layout",
             "sample_rate",
             "bits_per_sample",
-            "bitrate_kbps",
+            "bitrate",
             "duration_seconds",
             "total_samples",
             "dolby_atmos",
@@ -233,7 +233,7 @@ class Mp4Parser(BaseMediaParser):
             "width",
             "height",
             "frame_rate",
-            "bitrate_kbps",
+            "bitrate",
             "duration_seconds",
             "total_samples",
             "hdr_format",
@@ -280,7 +280,7 @@ class Mp4Parser(BaseMediaParser):
             "disc_total",
             "genre",
             "duration_seconds",
-            "bitrate_kbps",
+            "bitrate",
             "release_date",
             "publisher",
             "isrc",
@@ -585,8 +585,8 @@ class Mp4Parser(BaseMediaParser):
             if track_duration and track_timescale and total_sample_size > 0:
                 duration_in_seconds = track_duration / track_timescale
                 if duration_in_seconds > 0:
-                    bitrate_bps = (total_sample_size * 8) / duration_in_seconds
-                    audio_info["bitrate_kbps"] = int(bitrate_bps / 1000)
+                    bitrate = (total_sample_size * 8) / duration_in_seconds
+                    audio_info["bitrate"] = int(bitrate)
 
             if total_samples is not None:
                 audio_info["total_samples"] = total_samples
@@ -662,8 +662,8 @@ class Mp4Parser(BaseMediaParser):
                 duration_in_seconds = track_duration / track_timescale
                 if duration_in_seconds > 0:
                     if total_sample_size > 0:
-                        bitrate_bps = (total_sample_size * 8) / duration_in_seconds
-                        video_info["bitrate_kbps"] = int(bitrate_bps / 1000)
+                        bitrate = (total_sample_size * 8) / duration_in_seconds
+                        video_info["bitrate"] = int(bitrate)
                     if total_samples and total_samples > 0:
                         frame_rate = total_samples / duration_in_seconds
                         video_info["frame_rate"] = round(frame_rate, 3)

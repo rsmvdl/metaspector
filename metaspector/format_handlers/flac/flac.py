@@ -1,5 +1,4 @@
-# metaspector/format_handlers/flac/flac.py
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 import struct
 import logging
@@ -49,7 +48,7 @@ class FlacParser(BaseMediaParser):
             "replaygain_track_peak": "replaygain_track_peak",
             "replaygain_album_gain": "replaygain_album_gain",
             "replaygain_album_peak": "replaygain_album_peak",
-            "bpm": "tempo",
+            "bpm": "bpm",
             "copyright": "copyright",
             "publisher": "publisher",
             "tracktotal": "track_total",
@@ -110,9 +109,8 @@ class FlacParser(BaseMediaParser):
                     bitrate = (audio_data_size * 8) / audio_tracks[0][
                         "duration_seconds"
                     ]
-                    bitrate_kbps = int(bitrate / 1000)
-                    audio_tracks[0]["bitrate_kbps"] = bitrate_kbps
-                    metadata["bitrate_kbps"] = bitrate_kbps
+                    audio_tracks[0]["bitrate"] = int(bitrate)
+                    metadata["bitrate"] = int(bitrate)
 
         return {
             "metadata": process_metadata_for_output(metadata),

@@ -1,5 +1,4 @@
-# metaspector/format_handlers/mp3/mp3.py
-# !/usr/bin/env python3
+#!/usr/bin/env python3
 
 import logging
 from typing import BinaryIO, Dict, List, Any, Optional
@@ -88,15 +87,17 @@ class Mp3Parser(BaseMediaParser):
                     average_bitrate_bps = (audio_data_size_bytes * 8) / audio_info[
                         "duration_seconds"
                     ]
-                    audio_info["bitrate_kbps"] = round(average_bitrate_bps / 1000)
+                    audio_info["bitrate"] = round(average_bitrate_bps)
                 else:
-                    audio_info["bitrate_kbps"] = None
+                    audio_info["bitrate"] = None
 
             if (
-                audio_info.get("bitrate_kbps") is None
+                audio_info.get("bitrate") is None
                 and audio_info.get("initial_frame_bitrate_kbps") is not None
             ):
-                audio_info["bitrate_kbps"] = audio_info["initial_frame_bitrate_kbps"]
+                audio_info["bitrate"] = (
+                    audio_info["initial_frame_bitrate_kbps"] * 1000
+                )
 
             # Add the audio info to the tracks list.
             self.audio_tracks.append(
@@ -117,12 +118,12 @@ class Mp3Parser(BaseMediaParser):
             ordered_track = self._order_audio_track(track)
             final_audio_tracks.append(ordered_track)
 
-        total_bitrate_kbps = 0
+        total_bitrate = 0
         for track in final_audio_tracks:
-            total_bitrate_kbps += track.get("bitrate_kbps") or 0
+            total_bitrate += track.get("bitrate") or 0
 
-        if total_bitrate_kbps > 0:
-            self.metadata["bitrate_kbps"] = total_bitrate_kbps
+        if total_bitrate > 0:
+            self.metadata["bitrate"] = total_bitrate
 
         final_metadata = self._process_metadata_for_output(self.metadata)
 
@@ -153,7 +154,7 @@ class Mp3Parser(BaseMediaParser):
             "channel_layout",
             "sample_rate",
             "bits_per_sample",
-            "bitrate_kbps",
+            "bitrate",
             "duration_seconds",
             "total_samples",
         ]
@@ -263,7 +264,7 @@ class Mp3Parser(BaseMediaParser):
             "disc_total",
             "genre",
             "duration_seconds",
-            "bitrate_kbps",
+            "bitrate",
             "release_date",
             "publisher",
             "isrc",
