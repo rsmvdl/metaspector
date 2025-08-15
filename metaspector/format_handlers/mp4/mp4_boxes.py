@@ -19,7 +19,8 @@ from .mp4_utils import (
     COLOR_PRIMARIES_MAP,
     MATRIX_COEFFICIENTS_MAP,
     _CHROMA_LOCATION_MAP,
-    _AV1_CHROMA_LOCATION_MAP,
+    _AV1_CHROMA_LOCATION_MAP, _VP9_PROFILE_MAP, _AV1_PROFILE_MAP, _HEVC_PROFILE_MAP, _H264_PROFILE_MAP,
+    _COVER_ART_FORMAT_MAP, _SUBTITLE_CODEC_MAP, _AUDIO_CODEC_MAP, _VIDEO_CODEC_MAP
 )
 from metaspector.matrices.rating_matrix import get_age_classification
 
@@ -31,96 +32,6 @@ class MP4BoxParser:
     A collection of static methods for parsing specific MP4 boxes.
     These methods are designed to be called by Mp4Parser.
     """
-
-    # A mapping of iTunes data format indicators for cover art to MIME types
-    _cover_art_format_map = {13: "image/jpeg", 14: "image/png"}
-
-    # A mapping of video codec FourCC tags to common codec names
-    _video_codec_map = {
-        "avc1": "h264",
-        "avc3": "h264",
-        "hvc1": "hevc",
-        "hev1": "hevc",
-        "dvh1": "hevc",
-        "dvhe": "hevc",
-        "av01": "av1",
-        "vp09": "vp9",
-        "mp4v": "mpeg4",
-    }
-
-    _h264_profile_map = {
-        66: "Baseline",
-        77: "Main",
-        88: "Extended",
-        100: "High",
-        103: "Stereo High",
-        110: "High 10",
-        122: "High 4:2:2",
-        128: "Stereo High",
-        134: "MFC High",
-        135: "MFC Depth High",
-        138: "Multi-view Depth High",
-        139: "Enhanced Multi-view Depth High",
-        144: "High 4:4:4",
-        155: "High 4:4:4 Predictive",
-        244: "High 4:4:4 Predictive",
-        44: "CAVLC 4:4:4 Intra",
-        83: "Scalable Baseline",
-        86: "Scalable High",
-        118: "Multi-view High",
-    }
-
-    _hevc_profile_map = {
-        1: "Main",
-        2: "Main 10",
-        3: "Main Still Picture",
-        4: "Range Extension",
-        5: "High Throughput",
-        6: "High Throughput 10",
-        9: "Main 4:4:4",
-        10: "Main 4:4:4 10",
-        11: "Main 4:4:4 12",
-        12: "Main 4:4:4 16",
-        17: "Main 12",
-        18: "Main 4:2:2",
-        19: "Main 4:2:2 10",
-        20: "Main 4:2:2 12",
-        21: "Main 4:2:2 16",
-        25: "Main 4:4:4 10",
-        26: "Main 4:4:4 12",
-        33: "Main 10",
-    }
-
-    _av1_profile_map = {0: "Main", 1: "High", 2: "Professional"}
-
-    _vp9_profile_map = {
-        0: "Profile 0",
-        1: "Profile 1",
-        2: "Profile 2",
-        3: "Profile 3",
-    }
-
-    _audio_codec_map = {
-        "ec-3": "eac3",
-        "ac-3": "ac3",
-        "mp4a": "aac",
-        "alac": "alac",
-        "flac": "flac",
-        "dts+": "dts-hd",
-        "dtsc": "dts",
-        "dtse": "dts-es",
-        "dtsh": "dts-hd",
-        "dtsl": "dts-hd ma",
-        "samr": "amr",
-        "sawb": "amr-wb",
-    }
-
-    _subtitle_codec_map = {
-        "tx3g": "tx3g",
-        "c608": "cea-608",
-        "stpp": "ttml",
-        "wvtt": "webvtt",
-    }
 
     class _TrackCharacteristics:
         """Holds boolean flags for track characteristics from 'udta'."""
@@ -222,7 +133,7 @@ class MP4BoxParser:
             reader.read_bits(8)  # Skip the 1-byte NAL Unit Header
 
             profile_idc = reader.read_bits(8)
-            details["profile"] = MP4BoxParser._h264_profile_map.get(
+            details["profile"] = _H264_PROFILE_MAP.get(
                 profile_idc, str(profile_idc)
             )
 
@@ -380,7 +291,7 @@ class MP4BoxParser:
             reader.read_bits(2)
             reader.read_bit()
             profile_idc = reader.read_bits(5)
-            details["profile"] = MP4BoxParser._hevc_profile_map.get(
+            details["profile"] = _HEVC_PROFILE_MAP.get(
                 profile_idc, str(profile_idc)
             )
             reader.read_bits(32)
@@ -553,7 +464,7 @@ class MP4BoxParser:
             chroma_subsampling_y = reader.read_bits(1)
             chroma_sample_position = reader.read_bits(2)
 
-            details["profile"] = MP4BoxParser._av1_profile_map.get(
+            details["profile"] = _AV1_PROFILE_MAP.get(
                 seq_profile, str(seq_profile)
             )
 
@@ -614,7 +525,7 @@ class MP4BoxParser:
             profile = _read_uint8(f)
             if profile is None:
                 return {}
-            config["profile"] = MP4BoxParser._vp9_profile_map.get(profile, str(profile))
+            config["profile"] = _VP9_PROFILE_MAP.get(profile, str(profile))
 
             # The presence of at least 5 more bytes indicates the extended configuration.
             if box_end - f.tell() >= 5:
@@ -1034,10 +945,10 @@ class MP4BoxParser:
                     raw_data = f.read(data_length)
 
                     if item_type == b"covr":
-                        if value_format_indicator in MP4BoxParser._cover_art_format_map:
+                        if value_format_indicator in _COVER_ART_FORMAT_MAP:
                             has_cover_art = True
                             parsed_data["cover_art_mime"] = (
-                                MP4BoxParser._cover_art_format_map.get(
+                                _COVER_ART_FORMAT_MAP.get(
                                     value_format_indicator
                                 )
                             )
@@ -1293,26 +1204,26 @@ class MP4BoxParser:
 
     @staticmethod
     def parse_stsd_subtitle(
-        f: BinaryIO, stsd_end: int
-    ) -> Tuple[Optional[str], Optional[str]]:
+            f: BinaryIO, stsd_end: int
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
         name: Optional[str] = None
 
         # Skip version (1), flags (3), and number of entries (4).
         f.read(8)
         if f.tell() >= stsd_end:
             f.seek(stsd_end)
-            return None, None
+            return None, None, None
 
         # Now we are at the beginning of the first sample entry.
         entry_type, _, entry_start, entry_end = _read_box_header(f)
         if not entry_type or entry_end > stsd_end:
             f.seek(stsd_end)
-            return None, None
+            return None, None, None
 
         codec_tag = entry_type.decode("ascii", errors="replace")
-        codec = MP4BoxParser._subtitle_codec_map.get(codec_tag, codec_tag)
+        codec = codec_tag
+        codec_tag_string = _SUBTITLE_CODEC_MAP.get(codec_tag, codec_tag)
 
-        # The file pointer 'f' is now at the start of the sample entry's content.
         # Look for a descriptive name inside this sample entry.
         if entry_type in (b"tx3g", b"mp4s", b"subp", b"clcp", b"text", b"c608"):
             current_child_pos = f.tell()
@@ -1325,14 +1236,14 @@ class MP4BoxParser:
                     break
 
                 if child_type in (
-                    b"\xa9nam",
-                    b"name",
-                    b"titl",
-                    b"desc",
-                    b"drmi",
-                    b"text",
-                    b"kind",
-                    b"uri ",
+                        b"\xa9nam",
+                        b"name",
+                        b"titl",
+                        b"desc",
+                        b"drmi",
+                        b"text",
+                        b"kind",
+                        b"uri ",
                 ):
                     f.seek(child_start + 8)
                     potential_name = MP4BoxParser.parse_qtss(f, child_end)
@@ -1342,7 +1253,7 @@ class MP4BoxParser:
                 current_child_pos = child_end
 
         f.seek(stsd_end)
-        return codec, name
+        return codec, codec_tag_string, name
 
     @staticmethod
     def parse_stsd_audio(f: BinaryIO, stsd_end: int) -> Dict[str, Any]:
@@ -1364,7 +1275,7 @@ class MP4BoxParser:
 
         codec_tag = entry_type.decode("ascii", errors="replace")
         audio_details["codec_tag_string"] = codec_tag
-        audio_details["codec"] = MP4BoxParser._audio_codec_map.get(codec_tag, codec_tag)
+        audio_details["codec"] = _AUDIO_CODEC_MAP.get(codec_tag, codec_tag)
 
         f.seek(entry_start + 8)
         f.read(16)
@@ -1521,7 +1432,7 @@ class MP4BoxParser:
         video_details.update(
             {
                 "codec_tag_string": codec_tag,
-                "codec": MP4BoxParser._video_codec_map.get(codec_tag, codec_tag),
+                "codec": _VIDEO_CODEC_MAP.get(codec_tag, codec_tag),
             }
         )
 

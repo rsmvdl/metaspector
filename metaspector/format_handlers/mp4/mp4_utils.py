@@ -8,6 +8,11 @@ from typing import BinaryIO, Optional, Tuple
 
 logger = logging.getLogger(__name__)
 
+_COVER_ART_FORMAT_MAP = {
+    13: "image/jpeg",
+    14: "image/png"
+}
+
 TRANSFER_CHARACTERISTICS_MAP = {
     1: "bt709",
     4: "bt470m",
@@ -51,6 +56,96 @@ _AV1_CHROMA_LOCATION_MAP = {
     0: "unspecified",
     1: "topleft",
     2: "left",
+}
+
+_VIDEO_CODEC_MAP = {
+    "avc1": "h264",
+    "avc3": "h264",
+    "hvc1": "hevc",
+    "hev1": "hevc",
+    "dvh1": "hevc",
+    "dvhe": "hevc",
+    "av01": "av1",
+    "vp09": "vp9",
+    "mp4v": "mpeg4",
+}
+
+_H264_PROFILE_MAP = {
+    66: "Baseline",
+    77: "Main",
+    88: "Extended",
+    100: "High",
+    103: "Stereo High",
+    110: "High 10",
+    122: "High 4:2:2",
+    128: "Stereo High",
+    134: "MFC High",
+    135: "MFC Depth High",
+    138: "Multi-view Depth High",
+    139: "Enhanced Multi-view Depth High",
+    144: "High 4:4:4",
+    155: "High 4:4:4 Predictive",
+    244: "High 4:4:4 Predictive",
+    44: "CAVLC 4:4:4 Intra",
+    83: "Scalable Baseline",
+    86: "Scalable High",
+    118: "Multi-view High",
+}
+
+_HEVC_PROFILE_MAP = {
+    1: "Main",
+    2: "Main 10",
+    3: "Main Still Picture",
+    4: "Range Extension",
+    5: "High Throughput",
+    6: "High Throughput 10",
+    9: "Main 4:4:4",
+    10: "Main 4:4:4 10",
+    11: "Main 4:4:4 12",
+    12: "Main 4:4:4 16",
+    17: "Main 12",
+    18: "Main 4:2:2",
+    19: "Main 4:2:2 10",
+    20: "Main 4:2:2 12",
+    21: "Main 4:2:2 16",
+    25: "Main 4:4:4 10",
+    26: "Main 4:4:4 12",
+    33: "Main 10",
+}
+
+_AV1_PROFILE_MAP = {
+    0: "Main",
+    1: "High",
+    2: "Professional"
+}
+
+_VP9_PROFILE_MAP = {
+    0: "Profile 0",
+    1: "Profile 1",
+    2: "Profile 2",
+    3: "Profile 3",
+}
+
+_AUDIO_CODEC_MAP = {
+    "ec-3": "eac3",
+    "ac-3": "ac3",
+    "mp4a": "aac",
+    "alac": "alac",
+    "flac": "flac",
+    "dts+": "dts-hd",
+    "dtsc": "dts",
+    "dtse": "dts-es",
+    "dtsh": "dts-hd",
+    "dtsl": "dts-hd ma",
+    "samr": "amr",
+    "sawb": "amr-wb",
+}
+
+_SUBTITLE_CODEC_MAP = {
+    "tx3g": "mov_text",
+    "c608": "eia_608",
+    "stpp": "ttml",
+    "wvtt": "webvtt",
 }
 
 

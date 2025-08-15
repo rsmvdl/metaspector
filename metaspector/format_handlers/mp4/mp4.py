@@ -199,6 +199,7 @@ class Mp4Parser(BaseMediaParser):
             "internationalized_language",
             "internationalized_language_long",
             "codec",
+            "codec_tag_string",
             "duration_seconds",
             "main_program_content",
             "original_content",
@@ -394,6 +395,7 @@ class Mp4Parser(BaseMediaParser):
         descriptive_track_name: Optional[str] = None
         total_samples: Optional[int] = None
         subtitle_codec: Optional[str] = None
+        subtitle_codec_tag: Optional[str] = None
 
         current_pos = f.tell()
         while current_pos < trak_end:
@@ -462,12 +464,13 @@ class Mp4Parser(BaseMediaParser):
                                             )
                                             video_info.update(video_stsd_info)
                                         elif handler_type_from_hdlr in (
-                                            b"sbtl",
-                                            b"subt",
-                                            b"clcp",
+                                                b"sbtl",
+                                                b"subt",
+                                                b"clcp",
                                         ):
                                             (
                                                 subtitle_codec,
+                                                subtitle_codec_tag,
                                                 subtitle_stsd_name,
                                             ) = MP4BoxParser.parse_stsd_subtitle(
                                                 f, stbl_end
@@ -486,7 +489,7 @@ class Mp4Parser(BaseMediaParser):
                                                 if first_sample_size is None:
                                                     first_sample_size = uniform_size
                                                 total_sample_size = (
-                                                    uniform_size * sample_count
+                                                        uniform_size * sample_count
                                                 )
                                             else:
                                                 sizes_data = f.read(sample_count * 4)
@@ -496,21 +499,21 @@ class Mp4Parser(BaseMediaParser):
                                                     )
                                                     total_sample_size = sum(sizes)
                                                     if (
-                                                        first_sample_size is None
-                                                        and sizes
+                                                            first_sample_size is None
+                                                            and sizes
                                                     ):
                                                         first_sample_size = sizes[0]
                                     elif (
-                                        stbl_type == b"stco"
-                                        and first_chunk_offset is None
+                                            stbl_type == b"stco"
+                                            and first_chunk_offset is None
                                     ):
                                         f.seek(stbl_box_start + 8 + 4)
                                         entry_count = _read_uint32(f)
                                         if entry_count is not None and entry_count > 0:
                                             first_chunk_offset = _read_uint32(f)
                                     elif (
-                                        stbl_type == b"co64"
-                                        and first_chunk_offset is None
+                                            stbl_type == b"co64"
+                                            and first_chunk_offset is None
                                     ):
                                         f.seek(stbl_box_start + 8 + 4)
                                         entry_count = _read_uint32(f)
@@ -553,8 +556,8 @@ class Mp4Parser(BaseMediaParser):
                                                 f, data_end
                                             )
                                             if (
-                                                potential_name
-                                                and item_type == b"\xa9nam"
+                                                    potential_name
+                                                    and item_type == b"\xa9nam"
                                             ):
                                                 descriptive_track_name = potential_name
                                                 break
@@ -594,9 +597,9 @@ class Mp4Parser(BaseMediaParser):
             if audio_info.get("codec") == "eac3":
                 has_atmos = False
                 if (
-                    first_chunk_offset is not None
-                    and first_sample_size is not None
-                    and first_sample_size > 0
+                        first_chunk_offset is not None
+                        and first_sample_size is not None
+                        and first_sample_size > 0
                 ):
                     original_file_pos = f.tell()
                     try:
@@ -606,7 +609,7 @@ class Mp4Parser(BaseMediaParser):
                             has_atmos = True
                     finally:
                         f.seek(original_file_pos)
-                audio_info["dolby_atmos"] = has_atmos
+                    audio_info["dolby_atmos"] = has_atmos
 
             self.audio_tracks.append(
                 {
@@ -627,9 +630,7 @@ class Mp4Parser(BaseMediaParser):
                 }
             )
 
-
         elif handler_type in (b"sbtl", b"subt", b"clcp"):
-
             subtitle_track_info = {
                 "index": index or 0,
                 "handler_name": final_track_name,
@@ -637,6 +638,7 @@ class Mp4Parser(BaseMediaParser):
                 "internationalized_language": i18n_lang,
                 "internationalized_language_long": i18n_lang_long,
                 "codec": subtitle_codec,
+                "codec_tag_string": subtitle_codec_tag,
                 "main_program_content": track_chars.main_program_content,
                 "original_content": track_chars.original_content,
                 "auxiliary_content": track_chars.auxiliary_content,
@@ -645,14 +647,11 @@ class Mp4Parser(BaseMediaParser):
                 "easy_to_read": track_chars.easy_to_read,
                 "describes_music_and_sound": track_chars.describes_music_and_sound,
                 "transcribes_spoken_dialog": track_chars.transcribes_spoken_dialog,
-
             }
 
             if track_duration and track_timescale and track_timescale > 0:
                 subtitle_track_info["duration_seconds"] = (
-
                         track_duration / track_timescale
-
                 )
 
             self.subtitle_tracks.append(subtitle_track_info)
