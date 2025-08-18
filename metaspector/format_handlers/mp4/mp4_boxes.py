@@ -1294,41 +1294,24 @@ class MP4BoxParser:
                 break
 
             if child_type == b"esds":
-                f.seek(child_start + 8 + 4)  # Seek past box header and version/flags
-
-                # ES_Descriptor (tag 0x03)
+                f.seek(child_start + 8 + 4)
                 if _read_uint8(f) == 0x03:
                     MP4BoxParser._read_mp4_descriptor_length(f)
-                    f.read(2)  # ES_ID
-                    f.read(1)  # streamPriority
-
-                    # DecoderConfigDescriptor (tag 0x04)
+                    f.read(3)
                     if _read_uint8(f) == 0x04:
                         MP4BoxParser._read_mp4_descriptor_length(f)
-                        f.read(
-                            13
-                        )  # objectTypeIndication, streamType, bufferSizeDB, etc.
-
-                        # DecoderSpecificInfo (tag 0x05) -> AudioSpecificConfig
+                        f.read(13)
                         if _read_uint8(f) == 0x05:
-                            dsi_len = MP4BoxParser._read_mp4_descriptor_length(f)
-                            if dsi_len >= 2:
+                            if MP4BoxParser._read_mp4_descriptor_length(f) >= 2:
                                 asc_data = f.read(2)
                                 reader = BitReader(asc_data)
-                                reader.read_bits(5)  # audioObjectType
-                                reader.read_bits(4)  # samplingFrequencyIndex
+                                reader.read_bits(9)
                                 channel_config = reader.read_bits(4)
-
                                 channel_map = {
-                                    1: (1, "1.0"),  # Mono
-                                    2: (2, "2.0"),  # Stereo
-                                    3: (3, "3.0"),  # C, L, R
-                                    4: (4, "4.0"),  # C, L, R, Back S
-                                    5: (5, "5.0"),  # C, L, R, Ls, Rs
-                                    6: (6, "5.1"),  # C, L, R, Ls, Rs, LFE
-                                    7: (8, "7.1"),  # C, L, R, Ls, Rs, LFE, Lrs, Rrs
+                                    1: (1, "1.0"), 2: (2, "2.0"), 3: (3, "3.0"),
+                                    4: (4, "4.0"), 5: (5, "5.0"), 6: (6, "5.1"),
+                                    7: (8, "7.1"),
                                 }
-
                                 if channel_config in channel_map:
                                     count, layout = channel_map[channel_config]
                                     audio_details["channels"] = count
@@ -1341,21 +1324,26 @@ class MP4BoxParser:
                 if bits is not None:
                     acmod = (bits >> 3) & 0x07
                     lfeon = (bits >> 2) & 0x01
-
-                    ac3_channels_map = {0: 2, 1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5}
-                    main_channels = ac3_channels_map.get(acmod, 0)
+                    main_channels = {0: 2, 1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5}.get(acmod, 0)
                     audio_details["channels"] = main_channels + lfeon
-
-                    if acmod == 0:
-                        channel_layout = "1+1"
-                    else:
-                        channel_layout = f"{main_channels}.{lfeon}"
+                    channel_layout = "1+1" if acmod == 0 else f"{main_channels}.{lfeon}"
                 break
 
             elif child_type == b"dec3":
+                payload_start_pos = f.tell()
+                payload = f.read(child_end - payload_start_pos)
+
+                # Initialize dolby_atmos field for all E-AC-3 tracks.
+                audio_details["dolby_atmos"] = False
+                # If payload is > 5 bytes, it contains JOC data, so we set it to True.
+                if len(payload) > 5:
+                    audio_details["dolby_atmos"] = True
+
+                f.seek(payload_start_pos)
+
                 if audio_details.get("channels") == 8:
                     channel_layout = "7.1"
-                    break
+
                 f.read(2)
                 if child_end - f.tell() >= 3:
                     f.seek(1, 1)
@@ -1363,22 +1351,9 @@ class MP4BoxParser:
                     if bits is not None:
                         acmod = (bits >> 1) & 0x07
                         lfeon = bits & 0x01
-                        acmod_to_main_channels = {
-                            0: 2,
-                            1: 1,
-                            2: 2,
-                            3: 3,
-                            4: 3,
-                            5: 4,
-                            6: 4,
-                            7: 5,
-                        }
-                        main_channels = acmod_to_main_channels.get(acmod, 0)
+                        main_channels = {0: 2, 1: 1, 2: 2, 3: 3, 4: 3, 5: 4, 6: 4, 7: 5}.get(acmod, 0)
                         audio_details["channels"] = main_channels + lfeon
-                        if acmod == 0:
-                            channel_layout = "1+1"
-                        else:
-                            channel_layout = f"{main_channels}.{lfeon}"
+                        channel_layout = "1+1" if acmod == 0 else f"{main_channels}.{lfeon}"
                 break
 
             current_pos = child_end

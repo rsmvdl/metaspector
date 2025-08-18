@@ -594,22 +594,7 @@ class Mp4Parser(BaseMediaParser):
             if total_samples is not None:
                 audio_info["total_samples"] = total_samples
 
-            if audio_info.get("codec") == "eac3":
-                has_atmos = False
-                if (
-                        first_chunk_offset is not None
-                        and first_sample_size is not None
-                        and first_sample_size > 0
-                ):
-                    original_file_pos = f.tell()
-                    try:
-                        f.seek(first_chunk_offset)
-                        frame_data = f.read(first_sample_size)
-                        if b"\x0b\x77" in frame_data or b"\x1f\xee" in frame_data:
-                            has_atmos = True
-                    finally:
-                        f.seek(original_file_pos)
-                    audio_info["dolby_atmos"] = has_atmos
+            # --- REMOVED incorrect Atmos detection logic from here ---
 
             self.audio_tracks.append(
                 {
