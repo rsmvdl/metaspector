@@ -204,6 +204,7 @@ ID3_KEY_MAP = {
     "TSRC": "isrc",
     "UFID": "unique_file_identifier",
     "TSSE": "encoder",
+    "TLAN": "language",
     "TXXX:REPLAYGAIN_TRACK_GAIN": "replaygain_track_gain",
     "TXXX:REPLAYGAIN_TRACK_PEAK": "replaygain_track_peak",
     "TXXX:REPLAYGAIN_ALBUM_GAIN": "replaygain_album_gain",

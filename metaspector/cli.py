@@ -1,5 +1,5 @@
 # metaspector/cli.py
-# !/usr/bin/env python3
+# !/usr/env/bin python3
 
 """
 cli.py
@@ -10,16 +10,18 @@ This module provides the command-line interface for the metaspector library.
 
 import argparse
 import json
-import logging
 import sys
 import os
+from urllib.parse import urlparse, unquote
 
 from .inspector import MediaInspector
 from ._exceptions import MetaspectorError
 
 
-def check_file_path(path):
-    """Custom type function for argparse to validate if a path exists and is a file."""
+def check_source_path(path):
+    """Custom type function for argparse to validate if a path is a file or a URL."""
+    if path.startswith(("http://", "https://")):
+        return path
     if not os.path.isfile(path):
         raise argparse.ArgumentTypeError(
             f"The path '{path}' does not exist or is not a file."
@@ -30,14 +32,14 @@ def check_file_path(path):
 def inspect(args):
     """Handles the 'inspect' subcommand."""
     try:
-        # Pass the 'section' argument to the inspect method
         inspector = MediaInspector(args.filepath)
         metadata = inspector.inspect(section=args.section)
         print(json.dumps(metadata, indent=2, ensure_ascii=False))
     except (
-        MetaspectorError,
-        FileNotFoundError,
-        ValueError,
+            MetaspectorError,
+            FileNotFoundError,
+            ValueError,
+            IOError,
     ) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
@@ -51,7 +53,16 @@ def export(args):
     try:
         inspector = MediaInspector(args.filepath)
         destination_path = args.destination
-        base_name = os.path.splitext(os.path.basename(args.filepath))[0]
+
+        if args.filepath.startswith(("http://", "https://")):
+            parsed_url = urlparse(args.filepath)
+            filename = os.path.basename(unquote(parsed_url.path))
+            base_name = os.path.splitext(filename)[0]
+        else:
+            base_name = os.path.splitext(os.path.basename(args.filepath))[0]
+
+        if not base_name:
+            base_name = "media_export"
 
         # --- Logic for exporting the cover ---
         if args.export_type == "cover":
@@ -97,7 +108,7 @@ def export(args):
                 f.write(json_data)
             print(f"Metadata exported successfully to '{output_path}'.")
 
-    except (MetaspectorError, FileNotFoundError) as e:
+    except (MetaspectorError, FileNotFoundError, IOError) as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
@@ -107,11 +118,8 @@ def export(args):
 
 def main():
     """Defines the command-line entry point for the tool."""
-    # logging.basicConfig(level=logging.DEBUG,
-    #                    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
     parser = argparse.ArgumentParser(
-        description="Inspect and extract metadata from media files.",
+        description="Inspect and extract metadata from media files or URLs.",
         epilog="Use 'metaspector <command> --help' for more information on a specific command.",
     )
 
@@ -122,16 +130,16 @@ def main():
     # --- Parser for the 'inspect' command ---
     inspect_parser = subparsers.add_parser(
         "inspect",
-        help="Inspect a media file and print its metadata as JSON.",
+        help="Inspect a media file/URL and print its metadata as JSON.",
         epilog=(
             "Example: metaspector inspect /path/to/my_video.mp4\n"
-            "Example: metaspector inspect /path/to/my_audio.flac --section audio"
+            "Example: metaspector inspect https://example.com/audio.flac --section audio"
         ),
     )
     inspect_parser.add_argument(
         "filepath",
-        type=check_file_path,
-        help="The full path to the media file to inspect.",
+        type=check_source_path,
+        help="The full path or URL to the media file to inspect.",
     )
     inspect_parser.add_argument(
         "--section",
@@ -143,13 +151,13 @@ def main():
     # --- Parser for the 'export' command ---
     export_parser = subparsers.add_parser(
         "export",
-        help="Export data (cover art or metadata) from a media file.",
+        help="Export data (cover art or metadata) from a media file/URL.",
         formatter_class=argparse.RawTextHelpFormatter,
         epilog=(
             "Examples:\n"
-            "  # Export cover art to a specific file\n"
-            "  metaspector export cover song.flac /covers/art.jpg\n\n"
-            "  # Export metadata to a directory (filename will be auto-generated)\n"
+            "  # Export cover art from a URL to a specific file\n"
+            "  metaspector export cover https://example.com/song.flac /covers/art.jpg\n\n"
+            "  # Export metadata from a local file to a directory\n"
             "  metaspector export meta song.mp3 /json_files/"
         ),
     )
@@ -160,8 +168,8 @@ def main():
     )
     export_parser.add_argument(
         "filepath",
-        type=check_file_path,
-        help="The full path to the media file to export from.",
+        type=check_source_path,
+        help="The full path or URL to the media file to export from.",
     )
     export_parser.add_argument(
         "destination",

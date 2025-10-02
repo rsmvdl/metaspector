@@ -99,7 +99,6 @@ class Mp3Parser(BaseMediaParser):
                     audio_info["initial_frame_bitrate_kbps"] * 1000
                 )
 
-            # Add the audio info to the tracks list.
             self.audio_tracks.append(
                 {
                     "handler_name": "Audio",
@@ -215,6 +214,12 @@ class Mp3Parser(BaseMediaParser):
                     self.metadata[key] = value
             else:
                 self.metadata[key] = value
+        elif key == "language":
+            lang_code = str(value).strip().lower()
+            if lang_code == "xxx":
+                self.metadata[key] = "und"
+            else:
+                self.metadata[key] = lang_code
         elif key in [
             "replaygain_track_gain",
             "replaygain_track_peak",
@@ -226,7 +231,6 @@ class Mp3Parser(BaseMediaParser):
             "copyright",
             "publisher",
             "performer",
-            "language",
             "record_company",
             "upc",
             "media_type",
