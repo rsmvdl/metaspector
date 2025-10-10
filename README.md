@@ -81,8 +81,14 @@ The metaspector CLI provides simple and direct access to the library's main func
 
 To inspect a file and print all of its metadata to the terminal as JSON, use the `inspect` command:
 
+#### Using a local file path
 ```bash
 metaspector inspect "/path/to/your/file.mp4"
+```
+
+#### Using a URL
+```bash
+metaspector inspect "https://some_example_url.com/path/to/your/file.mp4"
 ```
 
 #### Inspect a Specific Section

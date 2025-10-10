@@ -4,14 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "metaspector"
-version = "0.1.6"
+version = "0.1.6.post1"
 authors = [
   { name="RSMVDL" },
 ]
 description = "Python library to inspect and export metadata from MP4/M4V/M4A, MP3 and FLAC media files."
 readme = "README.md"
 requires-python = ">=3.6"
-license = {text = "BSD-3-Clause license"}
+license = "BSD-3-Clause"
 classifiers = [
     "Programming Language :: Python :: 3",
     "Operating System :: OS Independent",

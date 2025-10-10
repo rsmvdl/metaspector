@@ -1,7 +1,7 @@
 # metaspector/__init__.py
 # !/usr/bin/env python3
 
-__version__ = "0.1.6"
+__version__ = "0.1.6.post1"
 __author__ = "RSMVDL"
 
 from .cli import inspect, export
