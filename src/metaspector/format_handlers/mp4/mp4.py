@@ -3,10 +3,10 @@
 import struct
 
 from typing import BinaryIO, Dict, Any, Optional, List
-from metaspector.format_handlers.base import BaseMediaParser
+from ...format_handlers.base import BaseMediaParser
 from .mp4_utils import _read_box_header, _read_uint32, _read_uint64
 from .mp4_boxes import MP4BoxParser
-from metaspector.matrices.language_matrix import get_long_language_name
+from ...matrices.language_matrix import get_long_language_name
 
 
 class Mp4Parser(BaseMediaParser):

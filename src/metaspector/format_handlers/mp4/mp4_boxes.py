@@ -22,7 +22,7 @@ from .mp4_utils import (
     _AV1_CHROMA_LOCATION_MAP, _VP9_PROFILE_MAP, _AV1_PROFILE_MAP, _HEVC_PROFILE_MAP, _H264_PROFILE_MAP,
     _COVER_ART_FORMAT_MAP, _SUBTITLE_CODEC_MAP, _AUDIO_CODEC_MAP, _VIDEO_CODEC_MAP
 )
-from metaspector.matrices.rating_matrix import get_age_classification
+from ...matrices.rating_matrix import get_age_classification
 
 logger = logging.getLogger(__name__)
 

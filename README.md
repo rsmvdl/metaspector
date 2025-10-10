@@ -130,7 +130,7 @@ Metaspector's API is designed for easy integration into your Python scripts.
 To get all metadata from a file, instantiate `MediaInspector` and call the `inspect()` method:
 
 ```python
-from metaspector import MediaInspector
+from src.metaspector import MediaInspector
 
 inspector = MediaInspector("/path/to/your/file.mp4")
 metadata = inspector.inspect()
@@ -143,7 +143,7 @@ print(metadata)
 You can pass the `section` argument to the `inspect()` method to retrieve only a specific part of the metadata:
 
 ```python
-from metaspector import MediaInspector
+from src.metaspector import MediaInspector
 
 inspector = MediaInspector("/path/to/your/file.m4a")
 audio_data = inspector.inspect(section="audio")
@@ -156,7 +156,7 @@ print(audio_data)
 Use the `get_cover_art()` method to retrieve the raw image bytes, which you can then save to a file:
 
 ```python
-from metaspector import MediaInspector
+from src.metaspector import MediaInspector
 
 inspector = MediaInspector("/path/to/your/file.flac")
 cover_art_bytes = inspector.get_cover_art()

@@ -4,7 +4,7 @@ import struct
 import logging
 
 from typing import BinaryIO, Dict, Any, Optional
-from metaspector.format_handlers.base import BaseMediaParser
+from ...format_handlers.base import BaseMediaParser
 from .flac_boxes import (
     parse_streaminfo_block,
     parse_vorbis_comment_block,
